@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block title %}Anomaly Review{% endblock %}
+
+{% block content %}
+<!--
+  Anomaly Review List — Use Case: View Anomalies
+  Source: Section 4.4.2 — 'enables the administrator to inspect detected anomalies
+  along with relevant metadata such as timestamps and severity indicators'
+-->
+<div class="page-header">
+    <h2>Anomaly Review</h2>
+    <p class="page-subtitle">{{ total }} anomal{{ 'y' if total == 1 else 'ies' }} detected</p>
+</div>
+
+<!-- Filters -->
+<div class="card filter-card">
+    <form method="GET" action="{{ url_for('dashboard.anomalies') }}" class="filter-form">
+        <div class="filter-group">
+            <label>Severity</label>
+            <select name="severity" class="form-control-sm">
+                <option value="">All</option>
+                {% for s in ['HIGH', 'MEDIUM', 'LOW'] %}
+                <option value="{{ s }}" {% if current_severity == s %}selected{% endif %}>{{ s }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="filter-group">
+            <label>Status</label>
+            <select name="status" class="form-control-sm">
+                <option value="">All</option>
+                {% for s in ['OPEN', 'REVIEWED', 'DISMISSED'] %}
+                <option value="{{ s }}" {% if current_status == s %}selected{% endif %}>{{ s }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <button type="submit" class="btn btn-sm btn-primary">Apply Filter</button>
+        <a href="{{ url_for('dashboard.anomalies') }}" class="btn btn-sm">Clear</a>
+    </form>
+</div>
+
+<!-- Anomaly Table -->
+{% if items %}
+<div class="card">
+    <div class="table-wrapper">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Detected</th>
+                    <th>Severity</th>
+                    <th>Score</th>
+                    <th>Source IP</th>
+                    <th>Destination IP</th>
+                    <th>Event Type</th>
+                    <th>Protocol</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for a in items %}
+            <tr class="row-{{ a.severity | lower }}">
+                <td>#{{ a.result_id }}</td>
+                <td class="td-mono">{{ a.detection_time }}</td>
+                <td><span class="badge badge-{{ a.severity | lower }}">{{ a.severity }}</span></td>
+                <td class="td-mono">{{ "%.4f"|format(a.anomaly_score) }}</td>
+                <td class="td-mono">{{ a.source_ip }}</td>
+                <td class="td-mono">{{ a.destination_ip }}</td>
+                <td>{{ a.event_type }}</td>
+                <td>{{ a.protocol_type | upper }}</td>
+                <td><span class="badge badge-status-{{ a.status | lower }}">{{ a.status }}</span></td>
+                <td>
+                    <a href="{{ url_for('dashboard.anomaly_detail', result_id=a.result_id) }}"
+                       class="btn btn-xs">Details</a>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    {% if pages > 1 %}
+    <div class="pagination">
+        {% if page > 1 %}
+        <a href="{{ url_for('dashboard.anomalies', page=page-1, severity=current_severity, status=current_status) }}"
+           class="btn btn-sm">&laquo; Prev</a>
+        {% endif %}
+        <span class="page-info">Page {{ page }} of {{ pages }}</span>
+        {% if page < pages %}
+        <a href="{{ url_for('dashboard.anomalies', page=page+1, severity=current_severity, status=current_status) }}"
+           class="btn btn-sm">Next &raquo;</a>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+
+{% else %}
+<div class="card">
+    <div class="empty-state">
+        {% if current_severity or current_status %}
+        <p>No anomalies match the selected filters.</p>
+        <a href="{{ url_for('dashboard.anomalies') }}" class="btn">Clear Filters</a>
+        {% else %}
+        <p>No anomalies detected yet.</p>
+        <a href="{{ url_for('dashboard.upload') }}" class="btn btn-primary">Upload Log Data</a>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+{% endblock %}

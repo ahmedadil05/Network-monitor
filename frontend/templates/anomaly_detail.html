@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block title %}Anomaly #{{ anomaly.result_id }}{% endblock %}
+
+{% block content %}
+<!--
+  Anomaly Detail View
+  Source: Section 4.6 — 'present anomaly detection results in a transparent
+  and interpretable manner'
+  Section 4.4.2 — 'View Anomalies use case'
+  Section 2.7 — explainability is a core design priority
+-->
+<div class="page-header">
+    <div>
+        <a href="{{ url_for('dashboard.anomalies') }}" class="back-link">&larr; Anomaly List</a>
+        <h2>Anomaly Detail — #{{ anomaly.result_id }}</h2>
+        <p class="page-subtitle">Full record and detection explanation</p>
+    </div>
+    <span class="badge badge-{{ anomaly.severity | lower }} badge-lg">
+        {{ anomaly.severity }} SEVERITY
+    </span>
+</div>
+
+<!-- Explainability Box (Section 4.6 — transparency requirement) -->
+<div class="explain-box explain-{{ anomaly.severity | lower }}">
+    <h3>&#9888; Why this event was flagged</h3>
+    <p>{{ anomaly.explanation }}</p>
+</div>
+
+<div class="detail-grid">
+    <!-- Detection Info -->
+    <div class="card">
+        <div class="card-header"><h3>Detection Information</h3></div>
+        <div class="card-body">
+            <table class="detail-table">
+                <tr>
+                    <th>Result ID</th>
+                    <td>#{{ anomaly.result_id }}</td>
+                </tr>
+                <tr>
+                    <th>Detection Time</th>
+                    <td class="td-mono">{{ anomaly.detection_time }}</td>
+                </tr>
+                <tr>
+                    <th>Anomaly Score</th>
+                    <td class="td-mono">{{ "%.6f"|format(anomaly.anomaly_score) }}
+                        <small class="text-muted">(lower = more anomalous)</small>
+                    </td>
+                </tr>
+                <tr>
+                    <th>Severity</th>
+                    <td><span class="badge badge-{{ anomaly.severity | lower }}">{{ anomaly.severity }}</span></td>
+                </tr>
+                <tr>
+                    <th>Status</th>
+                    <td><span class="badge badge-status-{{ anomaly.status | lower }}">{{ anomaly.status }}</span></td>
+                </tr>
+            </table>
+        </div>
+    </div>
+
+    <!-- Log Entry Metadata (Section 4.5.2) -->
+    <div class="card">
+        <div class="card-header"><h3>Log Entry Metadata</h3></div>
+        <div class="card-body">
+            <table class="detail-table">
+                <tr><th>Log ID</th><td>#{{ anomaly.log_id }}</td></tr>
+                <tr><th>Timestamp</th><td class="td-mono">{{ anomaly.timestamp }}</td></tr>
+                <tr><th>Source IP</th><td class="td-mono">{{ anomaly.source_ip }}</td></tr>
+                <tr><th>Destination IP</th><td class="td-mono">{{ anomaly.destination_ip }}</td></tr>
+                <tr><th>Event Type</th><td>{{ anomaly.event_type }}</td></tr>
+                <tr><th>Original Label</th><td>{{ anomaly.original_label }}</td></tr>
+                <tr><th>Message</th><td>{{ anomaly.message }}</td></tr>
+            </table>
+        </div>
+    </div>
+
+    <!-- Network Features (Appendix B — dataset attributes) -->
+    <div class="card">
+        <div class="card-header"><h3>Network Features</h3></div>
+        <div class="card-body">
+            <table class="detail-table">
+                <tr><th>Protocol Type</th><td>{{ anomaly.protocol_type | upper }}</td></tr>
+                <tr><th>Service</th><td>{{ anomaly.service }}</td></tr>
+                <tr><th>Flag</th><td class="td-mono">{{ anomaly.flag }}</td></tr>
+                <tr><th>Duration (s)</th><td class="td-mono">{{ anomaly.duration }}</td></tr>
+                <tr><th>Source Bytes</th><td class="td-mono">{{ "{:,}".format(anomaly.src_bytes) }}</td></tr>
+                <tr><th>Destination Bytes</th><td class="td-mono">{{ "{:,}".format(anomaly.dst_bytes) }}</td></tr>
+                <tr><th>Land Attack Indicator</th><td>{{ "Yes" if anomaly.land else "No" }}</td></tr>
+                <tr><th>Wrong Fragments</th><td class="td-mono">{{ anomaly.wrong_fragment }}</td></tr>
+                <tr><th>Urgent Packets</th><td class="td-mono">{{ anomaly.urgent }}</td></tr>
+            </table>
+        </div>
+    </div>
+
+    <!-- Status Management -->
+    <div class="card">
+        <div class="card-header"><h3>Update Status</h3></div>
+        <div class="card-body">
+            <p>Mark this anomaly after review to track investigation progress.</p>
+            <form method="POST"
+                  action="{{ url_for('dashboard.update_status', result_id=anomaly.result_id) }}">
+                <div class="form-group">
+                    <select name="status" class="form-control">
+                        {% for s in ['OPEN', 'REVIEWED', 'DISMISSED'] %}
+                        <option value="{{ s }}" {% if anomaly.status == s %}selected{% endif %}>
+                            {{ s }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary">Update Status</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

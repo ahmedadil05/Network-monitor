@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+{% block title %}Upload Log Data{% endblock %}
+
+{% block content %}
+<!--
+  Log Upload Screen — Use Case: Log Analysis
+  Source: Section 4.4.2 — 'allows the administrator to initiate the
+  analysis of selected log files'
+  Section 3.4.7 — 'Network traffic data and system logs are obtained from
+  stored datasets and locally generated log files'
+-->
+<div class="page-header">
+    <h2>Upload Log Data</h2>
+    <p class="page-subtitle">Select a network log file (CSV) for anomaly analysis</p>
+</div>
+
+<div class="upload-grid">
+    <!-- Upload Form -->
+    <div class="card">
+        <div class="card-header"><h3>Upload Dataset File</h3></div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('dashboard.upload') }}"
+                  enctype="multipart/form-data">
+                <div class="form-group">
+                    <label for="log_file">Select Log File</label>
+                    <div class="file-drop-zone" id="dropZone">
+                        <div class="drop-icon">&#8679;</div>
+                        <p>Drag and drop your file here, or click to browse</p>
+                        <p class="upload-note">Supported formats: .csv, .txt, .log</p>
+                        <input type="file" id="log_file" name="log_file"
+                               accept=".csv,.txt,.log" class="file-input">
+                    </div>
+                    <div id="selectedFile" class="selected-file" style="display:none;"></div>
+                </div>
+
+                <div class="form-note">
+                    <strong>Expected format:</strong> NSL-KDD compatible CSV
+                    (or equivalent network log with duration, protocol_type, service,
+                    flag, src_bytes, dst_bytes columns).
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-full">
+                    &#8679; Process &amp; Detect Anomalies
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Dataset Info Panel -->
+    <div class="card">
+        <div class="card-header"><h3>Dataset Requirements</h3></div>
+        <div class="card-body">
+            <p>The system accepts publicly available network log datasets.</p>
+            <p><strong>Recommended dataset:</strong> NSL-KDD (available from UCI
+               Machine Learning Repository)</p>
+            <hr>
+            <p><strong>Expected columns include:</strong></p>
+            <ul class="info-list">
+                <li>duration, protocol_type, service, flag</li>
+                <li>src_bytes, dst_bytes</li>
+                <li>land, wrong_fragment, urgent</li>
+                <li>label (attack type or normal)</li>
+            </ul>
+            <hr>
+            <p class="text-muted">
+                The system preprocesses the file automatically:
+                parsing &rarr; filtering &rarr; normalization &rarr;
+                anomaly detection &rarr; storage.
+            </p>
+        </div>
+    </div>
+</div>
+
+<!-- Processing History -->
+<div class="card">
+    <div class="card-header"><h3>Processing History</h3></div>
+    {% if file_history %}
+    <div class="table-wrapper">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>File Name</th>
+                    <th>Uploaded</th>
+                    <th>Uploaded By</th>
+                    <th>Entries</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for f in file_history %}
+            <tr>
+                <td>{{ f.file_name }}</td>
+                <td class="td-mono">{{ f.upload_time }}</td>
+                <td>{{ f.uploaded_by or 'N/A' }}</td>
+                <td>{{ f.row_count }}</td>
+                <td>
+                    {% if f.processed %}
+                    <span class="badge badge-low">Processed</span>
+                    {% else %}
+                    <span class="badge badge-status-open">Pending</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <p>No files have been uploaded yet.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// File selection display enhancement
+const input = document.getElementById('log_file');
+const dropZone = document.getElementById('dropZone');
+const selectedFileDiv = document.getElementById('selectedFile');
+
+input.addEventListener('change', function() {
+    if (this.files.length) {
+        selectedFileDiv.textContent = 'Selected: ' + this.files[0].name;
+        selectedFileDiv.style.display = 'block';
+    }
+});
+
+dropZone.addEventListener('click', () => input.click());
+
+dropZone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    dropZone.classList.add('drag-over');
+});
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropZone.classList.remove('drag-over');
+    const dt = e.dataTransfer;
+    if (dt.files.length) {
+        input.files = dt.files;
+        selectedFileDiv.textContent = 'Selected: ' + dt.files[0].name;
+        selectedFileDiv.style.display = 'block';
+    }
+});
+</script>
+{% endblock %}

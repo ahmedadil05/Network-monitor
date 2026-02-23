@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<!--
+  Main Dashboard — Use Case: View Dashboard
+  Source: Section 4.4.2 — 'summarised overview of system status and recent activity'
+  Section 4.2.1 — 'displays network statistics, anomaly detection results, log summaries'
+-->
+<div class="page-header">
+    <h2>Dashboard</h2>
+    <p class="page-subtitle">System overview and recent anomaly activity</p>
+</div>
+
+<!-- Summary Cards (Section 4.4.2 — system status overview) -->
+<div class="stats-grid">
+    <div class="stat-card stat-blue">
+        <div class="stat-value">{{ summary.total_log_entries | default(0) }}</div>
+        <div class="stat-label">Total Log Entries</div>
+    </div>
+    <div class="stat-card stat-red">
+        <div class="stat-value">{{ summary.total_anomalies | default(0) }}</div>
+        <div class="stat-label">Total Anomalies</div>
+    </div>
+    <div class="stat-card stat-orange">
+        <div class="stat-value">{{ summary.open_anomalies | default(0) }}</div>
+        <div class="stat-label">Open Anomalies</div>
+    </div>
+    <div class="stat-card stat-purple">
+        <div class="stat-value">{{ summary.total_files | default(0) }}</div>
+        <div class="stat-label">Datasets Processed</div>
+    </div>
+</div>
+
+<!-- Severity breakdown row -->
+<div class="severity-bar-row">
+    <div class="severity-pill sev-high">HIGH: {{ summary.high_severity | default(0) }}</div>
+    <div class="severity-pill sev-medium">MEDIUM: {{ summary.medium_severity | default(0) }}</div>
+    <div class="severity-pill sev-low">LOW: {{ summary.low_severity | default(0) }}</div>
+</div>
+
+<!-- Charts Row (Section 4.2.1 — visualizations for decision-making) -->
+<div class="charts-grid">
+    <div class="chart-card">
+        <h3>Anomaly Severity Distribution</h3>
+        <canvas id="severityChart" height="220"></canvas>
+    </div>
+    <div class="chart-card">
+        <h3>Protocol Distribution</h3>
+        <canvas id="protocolChart" height="220"></canvas>
+    </div>
+    <div class="chart-card chart-wide">
+        <h3>Anomaly Timeline (Last 7 Days)</h3>
+        <canvas id="timelineChart" height="180"></canvas>
+    </div>
+</div>
+
+<!-- Recent Anomalies Table (Section 4.4.2 — recent activity display) -->
+<div class="card">
+    <div class="card-header">
+        <h3>Recent Anomalies</h3>
+        <a href="{{ url_for('dashboard.anomalies') }}" class="btn btn-sm">View All</a>
+    </div>
+    {% if recent_anomalies %}
+    <div class="table-wrapper">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Detected</th>
+                    <th>Severity</th>
+                    <th>Source IP</th>
+                    <th>Event Type</th>
+                    <th>Protocol</th>
+                    <th>Score</th>
+                    <th>Status</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for a in recent_anomalies %}
+            <tr>
+                <td>#{{ a.result_id }}</td>
+                <td class="td-mono">{{ a.detection_time }}</td>
+                <td><span class="badge badge-{{ a.severity | lower }}">{{ a.severity }}</span></td>
+                <td class="td-mono">{{ a.source_ip }}</td>
+                <td>{{ a.event_type }}</td>
+                <td>{{ a.protocol_type | upper }}</td>
+                <td class="td-mono">{{ "%.4f"|format(a.anomaly_score) }}</td>
+                <td><span class="badge badge-status-{{ a.status | lower }}">{{ a.status }}</span></td>
+                <td>
+                    <a href="{{ url_for('dashboard.anomaly_detail', result_id=a.result_id) }}"
+                       class="btn btn-xs">Detail</a>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <p>No anomalies detected yet.</p>
+        <a href="{{ url_for('dashboard.upload') }}" class="btn btn-primary">Upload Log Data</a>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Top Event Types -->
+{% if event_types %}
+<div class="card">
+    <div class="card-header"><h3>Top Detected Event Types</h3></div>
+    <div class="table-wrapper">
+        <table class="data-table">
+            <thead><tr><th>Event / Attack Type</th><th>Count</th></tr></thead>
+            <tbody>
+            {% for et in event_types %}
+            <tr>
+                <td>{{ et.event_type }}</td>
+                <td>{{ et.count }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Chart data passed from DashboardController (Section 4.5.6)
+// Section 4.2.1 — visualization layer renders structured data from application layer
+
+// Severity Doughnut Chart
+const sevData = {{ severity_dist | tojson }};
+new Chart(document.getElementById('severityChart'), {
+    type: 'doughnut',
+    data: {
+        labels: Object.keys(sevData).length ? Object.keys(sevData) : ['No Data'],
+        datasets: [{
+            data: Object.keys(sevData).length ? Object.values(sevData) : [1],
+            backgroundColor: ['#c0392b', '#e67e22', '#27ae60', '#bdc3c7'],
+            borderWidth: 0
+        }]
+    },
+    options: { plugins: { legend: { position: 'bottom' } }, cutout: '65%' }
+});
+
+// Protocol Bar Chart
+const protoData = {{ protocol_dist | tojson }};
+new Chart(document.getElementById('protocolChart'), {
+    type: 'bar',
+    data: {
+        labels: protoData.map(d => d.protocol_type.toUpperCase()),
+        datasets: [{
+            label: 'Log Entries',
+            data: protoData.map(d => d.count),
+            backgroundColor: '#1f4e79',
+            borderRadius: 4
+        }]
+    },
+    options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+});
+
+// Timeline Line Chart
+const tl = {{ timeline | tojson }};
+new Chart(document.getElementById('timelineChart'), {
+    type: 'line',
+    data: {
+        labels: tl.length ? tl.map(d => d.day) : ['No Data'],
+        datasets: [{
+            label: 'Anomalies Detected',
+            data: tl.length ? tl.map(d => d.count) : [0],
+            borderColor: '#c0392b',
+            backgroundColor: 'rgba(192,57,43,0.08)',
+            tension: 0.3,
+            fill: true,
+            pointRadius: 5,
+        }]
+    },
+    options: { scales: { y: { beginAtZero: true, precision: 0 } } }
+});
+</script>
+{% endblock %}

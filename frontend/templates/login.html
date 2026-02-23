@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Login{% endblock %}
+
+{% block content %}
+<!--
+  Login Screen — Use Case: User Authentication
+  Source: Section 4.4.2 — 'administrator provides valid credentials to access the system'
+  Section 4.2.1 — 'user authentication is handled at this layer'
+-->
+<div class="login-wrapper">
+    <div class="login-card">
+        <div class="login-header">
+            <div class="login-icon">&#9673;</div>
+            <h1>Network Monitor</h1>
+            <p>AI-Powered Log Anomaly Detection</p>
+        </div>
+
+        <form method="POST" action="{{ url_for('auth.login') }}" novalidate>
+            <div class="form-group">
+                <label for="username">Username</label>
+                <input
+                    type="text"
+                    id="username"
+                    name="username"
+                    class="form-control"
+                    placeholder="Enter your username"
+                    autocomplete="username"
+                    required
+                >
+            </div>
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input
+                    type="password"
+                    id="password"
+                    name="password"
+                    class="form-control"
+                    placeholder="Enter your password"
+                    autocomplete="current-password"
+                    required
+                >
+            </div>
+            <button type="submit" class="btn btn-primary btn-full">
+                Sign In
+            </button>
+        </form>
+
+        <div class="login-note">
+            <small>Access restricted to authorised system administrators.</small>
+        </div>
+    </div>
+</div>
+{% endblock %}
