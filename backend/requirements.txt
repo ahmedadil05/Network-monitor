@@ -1,0 +1,8 @@
+# Core dependencies — no external auth or form libraries required
+# All packages below are available in the standard undergraduate Python environment
+flask>=3.0.0
+scikit-learn>=1.5.0
+numpy>=1.26.0
+pandas>=2.0.0
+werkzeug>=3.0.0
+# Standard library: sqlite3, csv, os, logging, dataclasses, typing, unittest, functools
