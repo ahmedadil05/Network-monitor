@@ -1,0 +1,220 @@
+{% extends "base.html" %}
+{% block title %}Reports{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h2>Report Center</h2>
+        <p class="page-subtitle">Generate and download reports from your processed data</p>
+    </div>
+</div>
+
+<div class="reports-grid">
+    {% for report in report_types %}
+    <div class="report-card">
+        <div class="report-card-header">
+            <div class="report-icon">
+                {% if report.type == 'summary' %}
+                &#128202;
+                {% elif report.type == 'anomaly_detail' %}
+                &#9888;
+                {% else %}
+                &#128100;
+                {% endif %}
+            </div>
+            <div class="report-card-title">
+                <h3>{{ report.name }}</h3>
+                <p>{{ report.description }}</p>
+            </div>
+        </div>
+        <div class="report-formats">
+            <span class="format-label">Available formats:</span>
+            {% for format in report.formats %}
+            <span class="format-badge">{{ format | upper }}</span>
+            {% endfor %}
+        </div>
+        <div class="report-actions">
+            {% if report.type == 'summary' %}
+            <button onclick="generateReport('summary', 'json')" class="btn btn-primary">JSON</button>
+            <button onclick="generateReport('summary', 'csv')" class="btn">CSV</button>
+            {% elif report.type == 'anomaly_detail' %}
+            <select id="severity_filter" class="form-control-sm">
+                <option value="">All Severities</option>
+                <option value="HIGH">High</option>
+                <option value="MEDIUM">Medium</option>
+                <option value="LOW">Low</option>
+            </select>
+            <select id="status_filter" class="form-control-sm">
+                <option value="">All Status</option>
+                <option value="OPEN">Open</option>
+                <option value="REVIEWED">Reviewed</option>
+                <option value="DISMISSED">Dismissed</option>
+            </select>
+            <button onclick="generateAnomalyReport('json')" class="btn btn-primary">JSON</button>
+            <button onclick="generateAnomalyReport('csv')" class="btn">CSV</button>
+            <button onclick="generateAnomalyReport('html')" class="btn">HTML</button>
+            {% else %}
+            <button onclick="generateReport('user', 'json')" class="btn btn-primary">JSON</button>
+            <button onclick="generateReport('user', 'csv')" class="btn">CSV</button>
+            <button onclick="generateReport('user', 'html')" class="btn">HTML</button>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="card" style="margin-top: 24px;">
+    <div class="card-header">
+        <h3>Report Preview</h3>
+        <span id="report_status" class="text-muted"></span>
+    </div>
+    <div class="card-body">
+        <pre id="report_preview" class="report-preview">Select a report above to preview...</pre>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function generateReport(type, format) {
+    const status = document.getElementById('report_status');
+    const preview = document.getElementById('report_preview');
+    
+    status.textContent = 'Generating...';
+    
+    try {
+        let url = `/api/reports/${type}`;
+        if (format === 'csv') {
+            url += '/csv';
+            window.location.href = url;
+            status.textContent = `Downloading ${format.toUpperCase()} report...`;
+            return;
+        }
+        
+        const response = await fetch(url);
+        const data = await response.json();
+        
+        if (format === 'json') {
+            preview.textContent = JSON.stringify(data, null, 2);
+            status.textContent = `Generated: ${type} report (${format.toUpperCase()})`;
+        }
+    } catch (error) {
+        preview.textContent = 'Error generating report: ' + error.message;
+        status.textContent = 'Error';
+    }
+}
+
+async function generateAnomalyReport(format) {
+    const severity = document.getElementById('severity_filter').value;
+    const status = document.getElementById('status_filter').value;
+    
+    let params = [];
+    if (severity) params.push(`severity=${severity}`);
+    if (status) params.push(`status=${status}`);
+    
+    const queryString = params.length ? '?' + params.join('&') : '';
+    
+    if (format === 'csv') {
+        window.location.href = `/api/reports/anomalies/csv${queryString}`;
+        return;
+    }
+    
+    if (format === 'html') {
+        window.location.href = `/api/reports/anomalies/html${queryString}`;
+        return;
+    }
+    
+    const response = await fetch(`/api/reports/anomalies${queryString}`);
+    const data = await response.json();
+    document.getElementById('report_preview').textContent = JSON.stringify(data, null, 2);
+    document.getElementById('report_status').textContent = 'Generated: anomaly report (JSON)';
+}
+</script>
+{% endblock %}
+
+{% block style %}
+<style>
+.reports-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    gap: 20px;
+    margin-bottom: 24px;
+}
+
+.report-card {
+    background: var(--card-bg);
+    border-radius: var(--radius);
+    padding: 24px;
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border-color);
+    border-top: 4px solid var(--blue-mid);
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+.report-card-header {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.report-icon {
+    font-size: 32px;
+    line-height: 1;
+}
+
+.report-card-title h3 {
+    font-size: 16px;
+    color: var(--text);
+    margin: 0 0 4px 0;
+}
+
+.report-card-title p {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin: 0;
+}
+
+.report-formats {
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.format-label {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.format-badge {
+    background: var(--blue-light);
+    color: var(--text);
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: bold;
+}
+
+.report-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.report-preview {
+    background: var(--grey-light);
+    color: var(--text);
+    padding: 16px;
+    border-radius: var(--radius);
+    font-size: 12px;
+    max-height: 400px;
+    overflow: auto;
+    white-space: pre-wrap;
+    word-break: break-all;
+    font-family: 'Courier New', monospace;
+    margin: 0;
+}
+</style>
+{% endblock %}

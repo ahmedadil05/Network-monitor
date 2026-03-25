@@ -4,6 +4,8 @@ Dashboard and anomaly review routes.
 Source: Section 4.4.2 — Use Cases: View Dashboard, View Anomalies, Log Analysis.
 Section 4.5.6 — DashboardController mediates data for presentation.
 """
+import logging
+
 from flask import (
     Blueprint, render_template, request, redirect,
     url_for, flash, current_app, jsonify
@@ -11,7 +13,9 @@ from flask import (
 from backend.auth.session_manager import login_required, get_current_user
 from backend.dashboard.dashboard_controller import DashboardController
 from backend.ingestion.log_reader import LogIngestionService
+from backend.utils.upload_validator import UploadValidator, UploadErrorType
 
+logger = logging.getLogger(__name__)
 dashboard_bp = Blueprint("dashboard", __name__)
 
 
@@ -20,12 +24,18 @@ dashboard_bp = Blueprint("dashboard", __name__)
 @login_required
 def index():
     """Use Case: View Dashboard (Section 4.4.2)."""
+    current_user = get_current_user()
     summary      = DashboardController.get_summary()
     recent       = DashboardController.get_recent_anomalies(limit=8)
     severity_dist = DashboardController.get_severity_distribution()
     protocol_dist = DashboardController.get_protocol_distribution()
     timeline     = DashboardController.get_timeline_data(days=7)
     event_types  = DashboardController.get_event_type_distribution(limit=8)
+    user_summary = DashboardController.get_user_summary(current_user.user_id)
+    user_files   = DashboardController.get_user_file_history(current_user.user_id, limit=5)
+    system_health = DashboardController.get_system_health()
+    top_ips      = DashboardController.get_top_source_ips(limit=5)
+    detection_rate = DashboardController.get_detection_rate(days=7)
     return render_template(
         "dashboard.html",
         summary=summary,
@@ -34,7 +44,12 @@ def index():
         protocol_dist=protocol_dist,
         timeline=timeline,
         event_types=event_types,
-        current_user=get_current_user(),
+        current_user=current_user,
+        user_summary=user_summary,
+        user_files=user_files,
+        system_health=system_health,
+        top_ips=top_ips,
+        detection_rate=detection_rate,
     )
 
 
@@ -46,33 +61,40 @@ def upload():
     file_history = DashboardController.get_file_history()
 
     if request.method == "POST":
-        if "log_file" not in request.files:
-            flash("No file selected.", "error")
+        file_obj = request.files.get("log_file")
+        
+        validator = UploadValidator(current_app.config)
+        result = validator.validate_upload(file_obj)
+        
+        if not result.is_valid:
+            error_msg = result.primary_error or "File validation failed."
+            flash(error_msg, "error")
+            if result.errors and len(result.errors) > 1:
+                for error in result.errors[1:4]:
+                    flash(error.message, "warning")
             return render_template("upload.html", file_history=file_history, current_user=current_user)
-
-        f = request.files["log_file"]
-        if f.filename == "":
-            flash("No file selected.", "error")
-            return render_template("upload.html", file_history=file_history, current_user=current_user)
-
+        
         service = LogIngestionService(current_app.config)
-        if not service.allowed_file(f.filename):
-            flash("File type not supported. Allowed: .csv, .txt, .log", "error")
-            return render_template("upload.html", file_history=file_history, current_user=current_user)
-
+        
         try:
-            content = f.read().decode("utf-8", errors="replace")
             file_id, n_entries, n_anomalies = service.ingest(
-                content, f.filename, current_user.user_id
+                result.content, file_obj.filename, current_user.user_id
             )
+            if n_entries == 0:
+                flash("File processed but no valid log entries were found. Please check the file format.", "warning")
+                return redirect(url_for("dashboard.upload"))
             flash(
                 f"File processed: {n_entries} log entries analysed, "
                 f"{n_anomalies} anomalies detected.",
                 "success"
             )
             return redirect(url_for("dashboard.anomalies"))
+        except MemoryError:
+            flash("File is too large to process. Please upload a smaller file.", "error")
+            logger.error("Memory error processing file: %s", file_obj.filename)
         except Exception as exc:
             flash(f"Processing error: {exc}", "error")
+            logger.exception("Error processing file %s: %s", file_obj.filename, exc)
 
     return render_template("upload.html", file_history=file_history, current_user=current_user)
 

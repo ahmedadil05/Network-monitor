@@ -20,6 +20,7 @@ class Config:
     # Dataset storage (publicly available, locally stored per Section 3.4.7)
     DATASETS_DIR = os.path.join(BASE_DIR, "datasets")
     UPLOAD_EXTENSIONS = {".csv", ".txt", ".log"}
+    MAX_UPLOAD_SIZE = 50 * 1024 * 1024  # 50 MB max file size
 
     # Anomaly detection (FLAG-04: Isolation Forest)
     # Contamination = expected proportion of anomalies in data

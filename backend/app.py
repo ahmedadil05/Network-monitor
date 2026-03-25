@@ -50,8 +50,10 @@ def create_app(config_object=None):
     # ── Blueprints ────────────────────────────────────────────────
     from backend.auth.routes import auth_bp
     from backend.dashboard.routes import dashboard_bp
+    from backend.reports.routes import reports_bp
     app.register_blueprint(auth_bp)
     app.register_blueprint(dashboard_bp)
+    app.register_blueprint(reports_bp)
 
     # ── Default admin on first run ────────────────────────────────
     _create_default_admin(app)

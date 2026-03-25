@@ -8,8 +8,13 @@
   Section 4.2.1 — 'displays network statistics, anomaly detection results, log summaries'
 -->
 <div class="page-header">
-    <h2>Dashboard</h2>
-    <p class="page-subtitle">System overview and recent anomaly activity</p>
+    <div>
+        <h2>Welcome back, {{ current_user.username }}</h2>
+        <p class="page-subtitle">System overview and recent anomaly activity</p>
+    </div>
+    <div class="header-actions">
+        <a href="{{ url_for('dashboard.upload') }}" class="btn btn-primary">+ Upload Logs</a>
+    </div>
 </div>
 
 <!-- Summary Cards (Section 4.4.2 — system status overview) -->
@@ -29,6 +34,88 @@
     <div class="stat-card stat-purple">
         <div class="stat-value">{{ summary.total_files | default(0) }}</div>
         <div class="stat-label">Datasets Processed</div>
+    </div>
+</div>
+
+<!-- System Health Row -->
+<div class="health-grid">
+    <div class="health-card">
+        <div class="health-header">
+            <span class="health-icon">&#9733;</span>
+            <h4>System Health</h4>
+        </div>
+        <div class="health-stats">
+            <div class="health-stat">
+                <span class="health-value">{{ system_health.resolution_rate | default(0) }}%</span>
+                <span class="health-label">Resolution Rate</span>
+            </div>
+            <div class="health-stat">
+                <span class="health-value">{{ system_health.total_reviewed | default(0) }}</span>
+                <span class="health-label">Reviewed</span>
+            </div>
+            <div class="health-stat">
+                <span class="health-value">{{ system_health.total_dismissed | default(0) }}</span>
+                <span class="health-label">Dismissed</span>
+            </div>
+        </div>
+    </div>
+    <div class="health-card">
+        <div class="health-header">
+            <span class="health-icon">&#8679;</span>
+            <h4>Detection Rate (7 days)</h4>
+        </div>
+        <div class="health-stats">
+            <div class="health-stat">
+                <span class="health-value">{{ detection_rate.total_detections | default(0) }}</span>
+                <span class="health-label">Total Detections</span>
+            </div>
+            <div class="health-stat">
+                <span class="health-value">{{ detection_rate.avg_per_day | default(0) }}</span>
+                <span class="health-label">Avg/Day</span>
+            </div>
+            <div class="health-stat">
+                <span class="health-value">{{ detection_rate.high_severity_count | default(0) }}</span>
+                <span class="health-label">High Severity</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- User Activity Section -->
+<div class="user-section">
+    <div class="section-header">
+        <h3>Your Activity</h3>
+        <span class="user-badge-small">{{ current_user.role | upper }}</span>
+    </div>
+    <div class="user-stats-grid">
+        <div class="user-stat-card">
+            <div class="user-stat-icon">&#128193;</div>
+            <div class="user-stat-content">
+                <span class="user-stat-value">{{ user_summary.files_uploaded | default(0) }}</span>
+                <span class="user-stat-label">Files Uploaded</span>
+            </div>
+        </div>
+        <div class="user-stat-card">
+            <div class="user-stat-icon">&#9776;</div>
+            <div class="user-stat-content">
+                <span class="user-stat-value">{{ user_summary.entries_from_user | default(0) }}</span>
+                <span class="user-stat-label">Entries Processed</span>
+            </div>
+        </div>
+        <div class="user-stat-card">
+            <div class="user-stat-icon">&#9888;</div>
+            <div class="user-stat-content">
+                <span class="user-stat-value">{{ user_summary.anomalies_from_user | default(0) }}</span>
+                <span class="user-stat-label">Anomalies Found</span>
+            </div>
+        </div>
+        <div class="user-stat-card">
+            <div class="user-stat-icon">&#10004;</div>
+            <div class="user-stat-content">
+                <span class="user-stat-value">{{ user_summary.open_from_user | default(0) }}</span>
+                <span class="user-stat-label">Open Issues</span>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -55,55 +142,124 @@
     </div>
 </div>
 
-<!-- Recent Anomalies Table (Section 4.4.2 — recent activity display) -->
+<!-- Two Column Layout: Recent Anomalies + Top IPs -->
+<div class="two-column-grid">
+    <!-- Recent Anomalies Table (Section 4.4.2 — recent activity display) -->
+    <div class="card">
+        <div class="card-header">
+            <h3>Recent Anomalies</h3>
+            <a href="{{ url_for('dashboard.anomalies') }}" class="btn btn-sm">View All</a>
+        </div>
+        {% if recent_anomalies %}
+        <div class="table-wrapper">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Severity</th>
+                        <th>Source IP</th>
+                        <th>Type</th>
+                        <th>Score</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for a in recent_anomalies %}
+                <tr class="row-{{ a.severity | lower }}">
+                    <td>#{{ a.result_id }}</td>
+                    <td><span class="badge badge-{{ a.severity | lower }}">{{ a.severity }}</span></td>
+                    <td class="td-mono">{{ a.source_ip }}</td>
+                    <td>{{ a.event_type }}</td>
+                    <td class="td-mono">{{ "%.4f"|format(a.anomaly_score) }}</td>
+                    <td>
+                        <a href="{{ url_for('dashboard.anomaly_detail', result_id=a.result_id) }}"
+                           class="btn btn-xs">Detail</a>
+                    </td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <p>No anomalies detected yet.</p>
+            <a href="{{ url_for('dashboard.upload') }}" class="btn btn-primary">Upload Log Data</a>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Top Source IPs -->
+    <div class="card">
+        <div class="card-header">
+            <h3>Top Source IPs</h3>
+            <span class="text-muted">Most active in anomalies</span>
+        </div>
+        {% if top_ips %}
+        <div class="table-wrapper">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>IP Address</th>
+                        <th>Protocol</th>
+                        <th>Occurrences</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for ip in top_ips %}
+                <tr>
+                    <td class="td-mono">{{ ip.source_ip }}</td>
+                    <td><span class="badge badge-protocol">{{ ip.protocol_type | upper }}</span></td>
+                    <td><strong>{{ ip.count }}</strong></td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <p>No IP data available yet.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Recent Uploads by User -->
+{% if user_files %}
 <div class="card">
     <div class="card-header">
-        <h3>Recent Anomalies</h3>
-        <a href="{{ url_for('dashboard.anomalies') }}" class="btn btn-sm">View All</a>
+        <h3>Your Recent Uploads</h3>
+        <a href="{{ url_for('dashboard.upload') }}" class="btn btn-sm">Upload New</a>
     </div>
-    {% if recent_anomalies %}
     <div class="table-wrapper">
         <table class="data-table">
             <thead>
                 <tr>
-                    <th>ID</th>
-                    <th>Detected</th>
-                    <th>Severity</th>
-                    <th>Source IP</th>
-                    <th>Event Type</th>
-                    <th>Protocol</th>
-                    <th>Score</th>
+                    <th>File Name</th>
+                    <th>Upload Time</th>
+                    <th>Entries</th>
                     <th>Status</th>
-                    <th></th>
                 </tr>
             </thead>
             <tbody>
-            {% for a in recent_anomalies %}
+            {% for file in user_files %}
             <tr>
-                <td>#{{ a.result_id }}</td>
-                <td class="td-mono">{{ a.detection_time }}</td>
-                <td><span class="badge badge-{{ a.severity | lower }}">{{ a.severity }}</span></td>
-                <td class="td-mono">{{ a.source_ip }}</td>
-                <td>{{ a.event_type }}</td>
-                <td>{{ a.protocol_type | upper }}</td>
-                <td class="td-mono">{{ "%.4f"|format(a.anomaly_score) }}</td>
-                <td><span class="badge badge-status-{{ a.status | lower }}">{{ a.status }}</span></td>
+                <td class="td-mono">{{ file.file_name }}</td>
+                <td>{{ file.upload_time }}</td>
+                <td>{{ file.row_count | default(0) }}</td>
                 <td>
-                    <a href="{{ url_for('dashboard.anomaly_detail', result_id=a.result_id) }}"
-                       class="btn btn-xs">Detail</a>
+                    {% if file.processed %}
+                    <span class="badge badge-status-reviewed">Processed</span>
+                    {% else %}
+                    <span class="badge badge-status-open">Pending</span>
+                    {% endif %}
                 </td>
             </tr>
             {% endfor %}
             </tbody>
         </table>
     </div>
-    {% else %}
-    <div class="empty-state">
-        <p>No anomalies detected yet.</p>
-        <a href="{{ url_for('dashboard.upload') }}" class="btn btn-primary">Upload Log Data</a>
-    </div>
-    {% endif %}
 </div>
+{% endif %}
 
 <!-- Top Event Types -->
 {% if event_types %}
@@ -111,12 +267,19 @@
     <div class="card-header"><h3>Top Detected Event Types</h3></div>
     <div class="table-wrapper">
         <table class="data-table">
-            <thead><tr><th>Event / Attack Type</th><th>Count</th></tr></thead>
+            <thead><tr><th>Event / Attack Type</th><th>Count</th><th>Percentage</th></tr></thead>
             <tbody>
+            {% set total = summary.total_log_entries %}
             {% for et in event_types %}
             <tr>
                 <td>{{ et.event_type }}</td>
                 <td>{{ et.count }}</td>
+                <td>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: {{ (et.count / (total or 1) * 100) | round(1) }}%"></div>
+                        <span class="progress-text">{{ (et.count / (total or 1) * 100) | round(1) }}%</span>
+                    </div>
+                </td>
             </tr>
             {% endfor %}
             </tbody>

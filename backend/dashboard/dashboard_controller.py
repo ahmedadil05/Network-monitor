@@ -241,3 +241,134 @@ class DashboardController:
                ORDER BY f.upload_time DESC"""
         )
         return [dict(r) for r in rows]
+
+    @staticmethod
+    def get_user_summary(user_id: int) -> dict:
+        """Return statistics specific to the current user."""
+        files_uploaded = query_db(
+            "SELECT COUNT(*) as c FROM raw_log_files WHERE uploaded_by = ?", (user_id,), one=True
+        )["c"]
+
+        entries_from_user = query_db(
+            """SELECT COUNT(*) as c FROM log_entries le
+               JOIN raw_log_files f ON le.file_id = f.file_id
+               WHERE f.uploaded_by = ?""", (user_id,), one=True
+        )["c"]
+
+        anomalies_from_user = query_db(
+            """SELECT COUNT(*) as c FROM anomaly_results ar
+               JOIN log_entries le ON ar.log_id = le.log_id
+               JOIN raw_log_files f ON le.file_id = f.file_id
+               WHERE f.uploaded_by = ?""", (user_id,), one=True
+        )["c"]
+
+        open_from_user = query_db(
+            """SELECT COUNT(*) as c FROM anomaly_results ar
+               JOIN log_entries le ON ar.log_id = le.log_id
+               JOIN raw_log_files f ON le.file_id = f.file_id
+               WHERE f.uploaded_by = ? AND ar.status = 'OPEN'""", (user_id,), one=True
+        )["c"]
+
+        return {
+            "files_uploaded": files_uploaded,
+            "entries_from_user": entries_from_user,
+            "anomalies_from_user": anomalies_from_user,
+            "open_from_user": open_from_user,
+        }
+
+    @staticmethod
+    def get_user_file_history(user_id: int, limit: int = 10) -> list:
+        """Return file history for a specific user."""
+        rows = query_db(
+            """SELECT f.file_id, f.file_name, f.upload_time, f.row_count, f.processed
+               FROM raw_log_files f
+               WHERE f.uploaded_by = ?
+               ORDER BY f.upload_time DESC
+               LIMIT ?""",
+            (user_id, limit)
+        )
+        return [dict(r) for r in rows]
+
+    @staticmethod
+    def get_user_anomalies(user_id: int, limit: int = 10) -> list:
+        """Return anomalies detected from files uploaded by the current user."""
+        rows = query_db(
+            """SELECT ar.result_id, ar.anomaly_score, ar.severity, ar.status,
+                      ar.detection_time, ar.explanation,
+                      le.timestamp, le.source_ip, le.destination_ip,
+                      le.event_type, le.protocol_type, le.service
+               FROM anomaly_results ar
+               JOIN log_entries le ON ar.log_id = le.log_id
+               JOIN raw_log_files f ON le.file_id = f.file_id
+               WHERE f.uploaded_by = ?
+               ORDER BY ar.detection_time DESC
+               LIMIT ?""",
+            (user_id, limit)
+        )
+        return [dict(r) for r in rows]
+
+    @staticmethod
+    def get_system_health() -> dict:
+        """Return system health metrics."""
+        reviewed = query_db(
+            "SELECT COUNT(*) as c FROM anomaly_results WHERE status = 'REVIEWED'", one=True
+        )["c"]
+        dismissed = query_db(
+            "SELECT COUNT(*) as c FROM anomaly_results WHERE status = 'DISMISSED'", one=True
+        )["c"]
+        total = query_db(
+            "SELECT COUNT(*) as c FROM anomaly_results", one=True
+        )["c"]
+        
+        resolution_rate = (reviewed + dismissed) / total * 100 if total > 0 else 0
+        
+        avg_entries_per_file = query_db(
+            """SELECT AVG(row_count) as avg FROM raw_log_files WHERE processed = 1""", one=True
+        )["avg"] or 0
+        
+        last_upload = query_db(
+            "SELECT MAX(upload_time) as last FROM raw_log_files", one=True
+        )["last"]
+        
+        return {
+            "resolution_rate": round(resolution_rate, 1),
+            "avg_entries_per_file": round(avg_entries_per_file, 0),
+            "last_upload": last_upload,
+            "total_reviewed": reviewed,
+            "total_dismissed": dismissed,
+        }
+
+    @staticmethod
+    def get_top_source_ips(limit: int = 5) -> list:
+        """Return most active source IPs from anomalous entries."""
+        rows = query_db(
+            """SELECT le.source_ip, COUNT(*) as count, le.protocol_type
+               FROM log_entries le
+               JOIN anomaly_results ar ON le.log_id = ar.log_id
+               GROUP BY le.source_ip
+               ORDER BY count DESC
+               LIMIT ?""",
+            (limit,)
+        )
+        return [dict(r) for r in rows]
+
+    @staticmethod
+    def get_detection_rate(days: int = 7) -> dict:
+        """Return detection rate statistics over time."""
+        total_detections = query_db(
+            """SELECT COUNT(*) as c FROM anomaly_results
+               WHERE detection_time >= DATE('now', ?)""",
+            (f"-{days} days",), one=True
+        )["c"]
+        
+        high_severity = query_db(
+            """SELECT COUNT(*) as c FROM anomaly_results
+               WHERE detection_time >= DATE('now', ?) AND severity = 'HIGH'""",
+            (f"-{days} days",), one=True
+        )["c"]
+        
+        return {
+            "total_detections": total_detections,
+            "high_severity_count": high_severity,
+            "avg_per_day": round(total_detections / days, 1) if days > 0 else 0,
+        }
