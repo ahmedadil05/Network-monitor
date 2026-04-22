@@ -9,6 +9,10 @@ from backend.windowing.time_window import (
     EmptyWindowStrategy,
     WindowAggregates,
 )
+from backend.windowing.behavioral_features import (
+    BehavioralFeatures,
+    BehavioralFeatureExtractor,
+)
 
 __all__ = [
     "TimeWindowAggregator",
@@ -16,4 +20,6 @@ __all__ = [
     "WindowSize",
     "EmptyWindowStrategy",
     "WindowAggregates",
+    "BehavioralFeatures",
+    "BehavioralFeatureExtractor",
 ]
