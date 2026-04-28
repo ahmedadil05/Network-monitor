@@ -13,9 +13,19 @@ class Config:
     # Flask
     SECRET_KEY = os.environ.get("SECRET_KEY", "dev-secret-change-in-prod")
 
-    # SQLite database (local deployment per Section 3.4.6)
+    # Database Selection (sqlite or mysql)
+    DB_TYPE = os.environ.get("DB_TYPE", "mysql")
+
+    # SQLite database (fallback)
     DATABASE_PATH = os.path.join(BASE_DIR, "backend", "database", "network_monitor.db")
     DATABASE_SCHEMA = os.path.join(BASE_DIR, "backend", "database", "schema.sql")
+
+    # MySQL database (WampServer)
+    MYSQL_HOST = os.environ.get("MYSQL_HOST", "localhost")
+    MYSQL_USER = os.environ.get("MYSQL_USER", "root")
+    MYSQL_PASSWORD = os.environ.get("MYSQL_PASSWORD", "")
+    MYSQL_DB = os.environ.get("MYSQL_DB", "network_monitor")
+    MYSQL_SCHEMA = os.path.join(BASE_DIR, "backend", "database", "mysql_schema.sql")
 
     # Dataset storage (publicly available, locally stored per Section 3.4.7)
     DATASETS_DIR = os.path.join(BASE_DIR, "datasets")

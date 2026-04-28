@@ -59,14 +59,23 @@ class LogIngestionService:
             return file_id, 0, 0
 
         # 3. Store LogEntry records
-        entry_ids = self._store_entries(entries)
-        for entry, eid in zip(entries, entry_ids):
-            entry.log_id = eid
+        self._store_entries(entries)
+        
+        # Refetch entries with IDs for detection (MySQL friendly)
+        # Note: In a production environment with concurrent uploads, 
+        # filtering by file_id is necessary.
+        db_entries = query_db(
+            "SELECT * FROM log_entries WHERE file_id = ? ORDER BY log_id ASC",
+            (file_id,)
+        )
+        
+        from backend.models.log_entry import LogEntry
+        ready_entries = [LogEntry.from_db_row(row) for row in db_entries]
 
         # Update file row count
         execute_db(
             "UPDATE raw_log_files SET row_count = ?, processed = 1 WHERE file_id = ?",
-            (len(entries), file_id)
+            (len(ready_entries), file_id)
         )
 
         # 4. Anomaly Detection — AnomalyDetector (Section 4.5.4)
@@ -75,7 +84,7 @@ class LogIngestionService:
             random_state=self._random_state,
         )
         anomaly_results = detector.detect(
-            entries,
+            ready_entries,
             high_threshold=self._high_thresh,
             medium_threshold=self._medium_thresh,
         )
@@ -85,9 +94,9 @@ class LogIngestionService:
 
         logger.info(
             "Ingestion complete: %d entries, %d anomalies for file_id=%d",
-            len(entries), len(anomaly_results), file_id
+            len(ready_entries), len(anomaly_results), file_id
         )
-        return file_id, len(entries), len(anomaly_results)
+        return file_id, len(ready_entries), len(anomaly_results)
 
     # ──────────────────────────────────────────────────────────────
     # Private helpers
@@ -101,31 +110,26 @@ class LogIngestionService:
         )
 
     @staticmethod
-    def _store_entries(entries) -> list:
-        """Batch-insert LogEntry records and return their assigned log_ids."""
-        ids = []
-        for entry in entries:
-            eid = execute_db(
-                """INSERT INTO log_entries
+    def _store_entries(entries) -> None:
+        """Batch-insert LogEntry records for better performance."""
+        from backend.database.db import execute_many_db
+        query = """INSERT INTO log_entries
                    (file_id, timestamp, source_ip, destination_ip, event_type, message,
                     duration, protocol_type, service, flag, src_bytes, dst_bytes,
                     land, wrong_fragment, urgent, original_label)
-                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-                entry.to_db_tuple()
-            )
-            ids.append(eid)
-        return ids
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"""
+        args_list = [e.to_db_tuple() for e in entries]
+        execute_many_db(query, args_list)
 
     @staticmethod
     def _store_anomalies(results) -> None:
         """Batch-insert AnomalyResult records."""
-        for result in results:
-            execute_db(
-                """INSERT INTO anomaly_results
+        from backend.database.db import execute_many_db
+        query = """INSERT INTO anomaly_results
                    (log_id, anomaly_score, severity, detection_time, status, explanation)
-                   VALUES (?,?,?,?,?,?)""",
-                result.to_db_tuple()
-            )
+                   VALUES (?,?,?,?,?,?)"""
+        args_list = [r.to_db_tuple() for r in results]
+        execute_many_db(query, args_list)
 
     @staticmethod
     def allowed_file(filename: str) -> bool:
