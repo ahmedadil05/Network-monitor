@@ -149,3 +149,30 @@ def chart_data():
         "timeline":    DashboardController.get_timeline_data(days=7),
         "event_types": DashboardController.get_event_type_distribution(limit=8),
     })
+
+
+@dashboard_bp.route("/api/anomalies")
+@login_required
+def api_anomalies():
+    """API endpoint returning paginated anomalies with optional filters."""
+    page = request.args.get("page", 1, type=int)
+    severity = request.args.get("severity")
+    status = request.args.get("status")
+    result = DashboardController.get_anomaly_list(page=page, severity=severity, status=status)
+    return jsonify(result)
+
+
+@dashboard_bp.route("/api/stats")
+@login_required
+def api_stats():
+    """API endpoint returning consolidated dashboard statistics."""
+    current_user = get_current_user()
+    return jsonify({
+        "summary": DashboardController.get_summary(),
+        "severity_distribution": DashboardController.get_severity_distribution(),
+        "protocol_distribution": DashboardController.get_protocol_distribution(),
+        "timeline": DashboardController.get_timeline_data(days=7),
+        "system_health": DashboardController.get_system_health(),
+        "detection_rate": DashboardController.get_detection_rate(days=7),
+        "user_summary": DashboardController.get_user_summary(current_user.user_id),
+    })

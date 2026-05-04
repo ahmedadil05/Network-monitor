@@ -29,6 +29,7 @@ class LogIngestionService:
         self._random_state = cfg.ANOMALY_RANDOM_STATE
         self._high_thresh = cfg.SEVERITY_HIGH_THRESHOLD
         self._medium_thresh = cfg.SEVERITY_MEDIUM_THRESHOLD
+        self._model_path = cfg.MODEL_PATH
 
     # ──────────────────────────────────────────────────────────────
     # Public API
@@ -73,11 +74,21 @@ class LogIngestionService:
         detector = AnomalyDetector(
             contamination=self._contamination,
             random_state=self._random_state,
+            model_path=self._model_path,
         )
         anomaly_results = detector.detect(
             entries,
             high_threshold=self._high_thresh,
             medium_threshold=self._medium_thresh,
+        )
+
+        metrics = detector.evaluate(
+            detector._model.predict(detector._build_feature_matrix(entries)),
+            [e.original_label for e in entries],
+        )
+        logger.info(
+            "Evaluation metrics for file_id=%d: precision=%.4f recall=%.4f",
+            file_id, metrics["precision"], metrics["recall"]
         )
 
         # 5. Store AnomalyResult records (Section 4.5.5)
