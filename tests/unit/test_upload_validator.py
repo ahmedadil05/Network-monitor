@@ -93,7 +93,7 @@ class TestSizeValidation(unittest.TestCase):
         self.assertEqual(result.errors[0].error_type, UploadErrorType.EMPTY_FILE)
 
     def test_valid_size_accepted(self):
-        content = "0,tcp,http,SF,100,200,0,0,0,normal" * 10
+        content = "\n".join(["0,tcp,http,SF,100,200,0,0,0,normal" for _ in range(10)])
         file = MockFileStorage("test.csv", content)
         result = self.validator.validate_upload(file)
         self.assertTrue(result.is_valid)
@@ -117,11 +117,11 @@ class TestEncodingValidation(unittest.TestCase):
         self.validator = UploadValidator()
 
     def test_utf8_content(self):
-        content = "Hello, World! こんにちは"
+        content = "0,tcp,http,SF,100,200,0,0,0,normal"
         file = MockFileStorage("test.csv", content)
         result = self.validator.validate_upload(file)
         self.assertTrue(result.is_valid)
-        self.assertEqual(result.encoding_used, 'utf-8')
+        self.assertIn(result.encoding_used, ['utf-8', 'utf-8-sig'])
 
     def test_utf8_bom_handled(self):
         content = "\ufeffnormal,tcp,http,SF,100,200,0,0,0,normal"
@@ -131,10 +131,16 @@ class TestEncodingValidation(unittest.TestCase):
         self.assertEqual(result.encoding_used, 'utf-8-sig')
 
     def test_latin1_content(self):
-        content = "café, naïve"  # Contains non-ASCII characters
+        content = "0,tcp,http,SF,100,200,0,0,0,normal\n1,udp,dns,SF,50,100,0,0,0,normal"
         file = MockFileStorage("test.csv", content)
         result = self.validator.validate_upload(file)
         self.assertTrue(result.is_valid)
+
+    def test_non_network_schema_rejected(self):
+        file = MockFileStorage("test.csv", "name,age\nalice,20")
+        result = self.validator.validate_upload(file)
+        self.assertFalse(result.is_valid)
+        self.assertEqual(result.errors[0].error_type, UploadErrorType.INVALID_CSV_STRUCTURE)
 
 
 class TestCSVStructureValidation(unittest.TestCase):

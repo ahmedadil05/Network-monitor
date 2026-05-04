@@ -13,10 +13,13 @@ low computational overhead, no labelled training data required.
 Aligns with Section 2.3 (resource-efficient) and Section 2.7 (explainability).
 """
 import logging
+import os
 import numpy as np
+import joblib
 from sklearn.ensemble import IsolationForest
 from sklearn.preprocessing import LabelEncoder
-from typing import List, Tuple
+from sklearn.metrics import precision_score, recall_score
+from typing import List
 
 from backend.models.log_entry import LogEntry
 from backend.models.anomaly_result import AnomalyResult
@@ -40,7 +43,7 @@ class AnomalyDetector:
     Source: Section 4.5.4.
     """
 
-    def __init__(self, contamination: float = 0.1, random_state: int = 42):
+    def __init__(self, contamination: float = 0.1, random_state: int = 42, model_path: str = None):
         """
         Args:
             contamination: Expected proportion of anomalies (FLAG-04).
@@ -55,6 +58,7 @@ class AnomalyDetector:
         )
         self._label_encoders: dict = {}
         self._fitted = False
+        self.model_path = model_path
 
     # ──────────────────────────────────────────────────────────────
     # Public API
@@ -86,6 +90,9 @@ class AnomalyDetector:
         self._model.fit(X)
         self._fitted = True
 
+        if self.model_path:
+            self.save_model(self.model_path)
+
         # decision_function returns the anomaly score:
         # lower (more negative) = more anomalous
         scores = self._model.decision_function(X)
@@ -109,6 +116,35 @@ class AnomalyDetector:
             len(results), len(entries)
         )
         return results
+
+    def save_model(self, path: str) -> None:
+        """Persist trained model and encoders with joblib."""
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        payload = {
+            "model": self._model,
+            "label_encoders": self._label_encoders,
+            "contamination": self.contamination,
+            "random_state": self.random_state,
+        }
+        joblib.dump(payload, path)
+
+    def load_model(self, path: str) -> None:
+        """Load persisted model and encoders from joblib artifact."""
+        payload = joblib.load(path)
+        self._model = payload["model"]
+        self._label_encoders = payload.get("label_encoders", {})
+        self._fitted = True
+
+    @staticmethod
+    def evaluate(predictions: np.ndarray, truth_labels: np.ndarray) -> dict:
+        """Compute precision and recall for anomaly predictions."""
+        predictions = np.array(predictions)
+        y_pred = np.where(predictions == -1, 1, 0)
+        y_true = np.where(np.array(truth_labels) != "normal", 1, 0)
+        return {
+            "precision": float(precision_score(y_true, y_pred, zero_division=0)),
+            "recall": float(recall_score(y_true, y_pred, zero_division=0)),
+        }
 
     # ──────────────────────────────────────────────────────────────
     # Feature Engineering

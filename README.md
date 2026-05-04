@@ -88,7 +88,16 @@ The system is designed for the **NSL-KDD** dataset (FLAG-05).
 cp KDDTrain+.txt datasets/KDDTrain+.csv
 ```
 
-Any CSV file following the NSL-KDD column format will be accepted.
+Supported ingest schemas:
+- **Compact 10-column connection schema**: `duration,protocol_type,service,flag,src_bytes,dst_bytes,land,wrong_fragment,urgent,label`
+- **Full NSL-KDD 43-column schema** (including `difficulty_level`)
+
+This aligns with the project goal of anomaly detection on **structured, connection-level network telemetry**.
+Raw PCAP data should be converted into one of the supported CSV schemas before upload.
+
+For messy `.log`/`.txt` files, the ingestion layer now includes a parser that converts
+key-value log lines (for example `duration=1 protocol=tcp src_bytes=500 ...`) into the
+compact 10-column CSV schema before preprocessing.
 
 ---
 

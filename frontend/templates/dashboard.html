@@ -14,7 +14,22 @@
     </div>
     <div class="header-actions">
         <a href="{{ url_for('dashboard.upload') }}" class="btn btn-primary">+ Upload Logs</a>
+        <a href="{{ url_for('dashboard.api_stats') }}" class="btn btn-sm" target="_blank">API: /stats</a>
+        <a href="{{ url_for('dashboard.api_anomalies') }}" class="btn btn-sm" target="_blank">API: /anomalies</a>
     </div>
+</div>
+
+<div class="card api-card">
+    <div class="card-header">
+        <h3>Live Monitoring API Access (All Users)</h3>
+        <span class="text-muted">Use authenticated JSON endpoints for integrations and automation</span>
+    </div>
+    <div class="api-grid">
+        <div class="api-item"><strong>Stats:</strong> <code>/api/stats</code></div>
+        <div class="api-item"><strong>Anomalies:</strong> <code>/api/anomalies?page=1&severity=HIGH</code></div>
+        <div class="api-item"><strong>Chart Data:</strong> <code>/api/chart-data</code></div>
+    </div>
+    <div id="apiPreview" class="api-preview">Loading API preview…</div>
 </div>
 
 <!-- Summary Cards (Section 4.4.2 — system status overview) -->
@@ -343,5 +358,17 @@ new Chart(document.getElementById('timelineChart'), {
     },
     options: { scales: { y: { beginAtZero: true, precision: 0 } } }
 });
+
+// lightweight API preview for all roles
+fetch("{{ url_for('dashboard.api_stats') }}")
+  .then(r => r.json())
+  .then(data => {
+    const summary = data.summary || {};
+    const box = document.getElementById('apiPreview');
+    box.textContent = `Live summary: ${summary.total_log_entries || 0} logs, ${summary.total_anomalies || 0} anomalies, ${summary.open_anomalies || 0} open.`;
+  })
+  .catch(() => {
+    document.getElementById('apiPreview').textContent = 'Unable to load live API preview.';
+  });
 </script>
 {% endblock %}

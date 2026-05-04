@@ -34,9 +34,10 @@
                 </div>
 
                 <div class="form-note">
-                    <strong>Expected format:</strong> NSL-KDD compatible CSV
-                    (or equivalent network log with duration, protocol_type, service,
-                    flag, src_bytes, dst_bytes columns).
+                    <strong>Supported data types:</strong>
+                    connection-level network logs in either:
+                    (1) compact 10-column schema, or
+                    (2) full NSL-KDD 43-column schema.
                 </div>
 
                 <button type="submit" class="btn btn-primary btn-full">
@@ -61,6 +62,11 @@
                 <li>land, wrong_fragment, urgent</li>
                 <li>label (attack type or normal)</li>
             </ul>
+            <p><strong>Important:</strong> Raw PCAP and firewall text dumps are not directly analyzed.
+               Convert them to supported connection-level CSV fields first.</p>
+            <p><strong>Parser support:</strong> `.log` / `.txt` files with key-value patterns
+               (e.g., <code>duration=1 protocol=tcp src_bytes=500 ...</code>) are auto-converted
+               to compact CSV before anomaly detection.</p>
             <hr>
             <p class="text-muted">
                 The system preprocesses the file automatically:

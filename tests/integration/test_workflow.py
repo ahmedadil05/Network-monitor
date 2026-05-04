@@ -148,5 +148,11 @@ class TestUseCases(unittest.TestCase):
         self.assertEqual(r.status_code, 200)
         self.assertIn("application/json", r.content_type)
 
+    def test_alerts_endpoint_json(self):
+        self._login()
+        r = self.client.get("/alerts")
+        self.assertEqual(r.status_code, 200)
+        self.assertIn("application/json", r.content_type)
+
 if __name__ == "__main__":
     unittest.main()

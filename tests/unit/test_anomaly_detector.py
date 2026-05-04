@@ -3,6 +3,7 @@ tests/unit/test_anomaly_detector.py
 Unit tests for AnomalyDetector — Section 3.4.5, Table 3.5.
 """
 import unittest, sys, os
+import tempfile
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 from backend.models.log_entry import LogEntry
 from backend.detection.anomaly_detector import AnomalyDetector
@@ -79,6 +80,24 @@ class TestExplainability(unittest.TestCase):
         self.assertIn("fragment", exp.lower())
     def test_always_non_empty(self):
         self.assertGreater(len(AnomalyDetector._explain(entry(), -0.2, "MEDIUM")), 0)
+
+
+class TestPersistenceAndMetrics(unittest.TestCase):
+    def test_model_persistence_round_trip(self):
+        detector = AnomalyDetector(contamination=0.1)
+        detector.detect(normal_entries(40) + [anomalous()])
+        with tempfile.NamedTemporaryFile(suffix=".joblib") as tmp:
+            detector.save_model(tmp.name)
+            loaded = AnomalyDetector()
+            loaded.load_model(tmp.name)
+            self.assertTrue(loaded._fitted)
+
+    def test_evaluation_metrics_shape(self):
+        preds = [-1, 1, -1, 1]
+        labels = ["neptune", "normal", "smurf", "normal"]
+        metrics = AnomalyDetector.evaluate(preds, labels)
+        self.assertIn("precision", metrics)
+        self.assertIn("recall", metrics)
 
 if __name__ == "__main__":
     unittest.main()

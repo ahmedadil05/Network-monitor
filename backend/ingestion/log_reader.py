@@ -13,6 +13,7 @@ from backend.models.log_entry import LogEntry
 from backend.preprocessing.log_processor import LogProcessor
 from backend.detection.anomaly_detector import AnomalyDetector
 from backend.config import Config
+from backend.ingestion.text_log_parser import text_to_compact_csv
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +30,7 @@ class LogIngestionService:
         self._random_state = cfg.ANOMALY_RANDOM_STATE
         self._high_thresh = cfg.SEVERITY_HIGH_THRESHOLD
         self._medium_thresh = cfg.SEVERITY_MEDIUM_THRESHOLD
+        self._model_path = cfg.MODEL_PATH
 
     # ──────────────────────────────────────────────────────────────
     # Public API
@@ -51,9 +53,16 @@ class LogIngestionService:
         file_id = self._register_file(file_name, uploaded_by)
         logger.info("Ingestion: registered file '%s' as file_id=%d", file_name, file_id)
 
-        # 2. Preprocess — LogProcessor (Section 4.5.3)
+        # 2. Optional parser layer for messy text logs -> compact CSV schema
+        prepared_content = file_content
+        if file_name.lower().endswith((".log", ".txt")):
+            parsed = text_to_compact_csv(file_content)
+            if parsed.strip():
+                prepared_content = parsed
+
+        # 3. Preprocess — LogProcessor (Section 4.5.3)
         processor = LogProcessor(file_id=file_id)
-        entries = processor.process(file_content)
+        entries = processor.process(prepared_content)
         if not entries:
             logger.warning("Ingestion: no valid entries parsed from '%s'.", file_name)
             return file_id, 0, 0
@@ -73,11 +82,21 @@ class LogIngestionService:
         detector = AnomalyDetector(
             contamination=self._contamination,
             random_state=self._random_state,
+            model_path=self._model_path,
         )
         anomaly_results = detector.detect(
             entries,
             high_threshold=self._high_thresh,
             medium_threshold=self._medium_thresh,
+        )
+
+        metrics = detector.evaluate(
+            detector._model.predict(detector._build_feature_matrix(entries)),
+            [e.original_label for e in entries],
+        )
+        logger.info(
+            "Evaluation metrics for file_id=%d: precision=%.4f recall=%.4f",
+            file_id, metrics["precision"], metrics["recall"]
         )
 
         # 5. Store AnomalyResult records (Section 4.5.5)
