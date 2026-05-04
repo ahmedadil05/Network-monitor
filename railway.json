@@ -1,0 +1,10 @@
+{
+  "build": {
+    "builder": "dockerfile"
+  },
+  "deploy": {
+    "startCommand": "python run.py",
+    "restartPolicyMaxRetries": 5,
+    "restartPolicyWindowMs": 60000
+  }
+}

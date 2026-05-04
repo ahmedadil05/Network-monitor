@@ -1,21 +1,25 @@
 """
 database/db.py
-SQLite connection management and schema initialization.
+PostgreSQL connection management and schema initialization.
+Uses psycopg2 for PostgreSQL connectivity.
 """
-import sqlite3
-import os
+import psycopg2
+from psycopg2.extras import RealDictCursor
 from flask import g, current_app
+import os
 
 
 def get_db():
     """Return the database connection for the current app context."""
     if "db" not in g:
-        g.db = sqlite3.connect(
-            current_app.config["DATABASE_PATH"],
-            detect_types=sqlite3.PARSE_DECLTYPES
-        )
-        g.db.row_factory = sqlite3.Row
-        g.db.execute("PRAGMA foreign_keys = ON")
+        try:
+            g.db = psycopg2.connect(
+                current_app.config["DATABASE_URL"],
+                cursor_factory=RealDictCursor
+            )
+        except psycopg2.OperationalError as e:
+            current_app.logger.error(f"Failed to connect to PostgreSQL: {e}")
+            raise
     return g.db
 
 
@@ -28,28 +32,53 @@ def close_db(e=None):
 
 def init_db(app):
     """Create tables from schema.sql if they do not exist."""
-    os.makedirs(os.path.dirname(app.config["DATABASE_PATH"]), exist_ok=True)
-    with app.app_context():
-        db = sqlite3.connect(app.config["DATABASE_PATH"])
-        db.row_factory = sqlite3.Row
-        db.execute("PRAGMA foreign_keys = ON")
+    try:
+        db = psycopg2.connect(app.config["DATABASE_URL"])
+        cursor = db.cursor()
+        
         with open(app.config["DATABASE_SCHEMA"], "r") as f:
-            db.executescript(f.read())
+            schema_sql = f.read()
+            # Execute the entire schema script
+            cursor.execute(schema_sql)
+        
         db.commit()
+        cursor.close()
         db.close()
+        app.logger.info("Database schema initialized successfully.")
+    except psycopg2.Error as e:
+        app.logger.error(f"Failed to initialize database schema: {e}")
+        raise
 
 
 def query_db(query, args=(), one=False):
     """Execute a SELECT query and return results."""
     db = get_db()
-    cur = db.execute(query, args)
-    rv = cur.fetchall()
-    return (rv[0] if rv else None) if one else rv
+    cursor = db.cursor()
+    cursor.execute(query, args)
+    
+    if one:
+        result = cursor.fetchone()
+        cursor.close()
+        return result
+    else:
+        results = cursor.fetchall()
+        cursor.close()
+        return results
 
 
-def execute_db(query, args=()):
-    """Execute an INSERT/UPDATE/DELETE and commit."""
+def execute_db(query, args=(), return_id=False):
+    """Execute an INSERT/UPDATE/DELETE and commit. Optionally return the inserted ID."""
     db = get_db()
-    cur = db.execute(query, args)
-    db.commit()
-    return cur.lastrowid
+    cursor = db.cursor()
+    cursor.execute(query, args)
+    
+    if return_id:
+        # For INSERT ... RETURNING id queries
+        result = cursor.fetchone()
+        db.commit()
+        cursor.close()
+        return result[0] if result else None
+    else:
+        db.commit()
+        cursor.close()
+        return None

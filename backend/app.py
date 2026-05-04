@@ -1,9 +1,9 @@
 """
 app.py
 Flask application factory.
-Stack: Python + Flask + SQLite + Isolation Forest (scikit-learn).
+Stack: Python + Flask + PostgreSQL + Isolation Forest (scikit-learn).
 Architecture: Three-Tier (Section 4.2). No external APIs (Section 3.4.7).
-Deployment: Local/academic (Section 3.4.6).
+Deployment: Local/Railway (Section 3.4.6).
 """
 import logging
 import os
@@ -51,9 +51,11 @@ def create_app(config_object=None):
     from backend.auth.routes import auth_bp
     from backend.dashboard.routes import dashboard_bp
     from backend.reports.routes import reports_bp
+    from backend.admin.routes import admin_bp
     app.register_blueprint(auth_bp)
     app.register_blueprint(dashboard_bp)
     app.register_blueprint(reports_bp)
+    app.register_blueprint(admin_bp)
 
     # ── Default admin on first run ────────────────────────────────
     _create_default_admin(app)

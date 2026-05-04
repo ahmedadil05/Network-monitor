@@ -2,9 +2,13 @@
 config.py
 Application configuration constants.
 Technology stack selected per FLAG-01..03 resolution:
-  - Python/Flask, SQLite, Isolation Forest (scikit-learn)
+  - Python/Flask, PostgreSQL, Isolation Forest (scikit-learn)
 """
 import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
@@ -13,8 +17,11 @@ class Config:
     # Flask
     SECRET_KEY = os.environ.get("SECRET_KEY", "dev-secret-change-in-prod")
 
-    # SQLite database (local deployment per Section 3.4.6)
-    DATABASE_PATH = os.path.join(BASE_DIR, "backend", "database", "network_monitor.db")
+    # PostgreSQL database (supports local and Railway deployment)
+    DATABASE_URL = os.environ.get(
+        "DATABASE_URL",
+        "postgresql://postgres:postgres@localhost:5432/netmon"
+    )
     DATABASE_SCHEMA = os.path.join(BASE_DIR, "backend", "database", "schema.sql")
 
     # Dataset storage (publicly available, locally stored per Section 3.4.7)
