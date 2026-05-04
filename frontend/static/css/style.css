@@ -253,11 +253,32 @@ body {
 
 .text-muted { color: var(--text-muted); }
 
+.api-card { margin-bottom: 20px; }
+.api-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+.api-item {
+    background: var(--hover-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    padding: 10px;
+}
+.api-preview {
+    padding: 10px;
+    background: var(--grey-light);
+    border-radius: var(--radius);
+    font-size: 13px;
+}
+
 hr { border: none; border-top: 1px solid var(--border-color); margin: 12px 0; }
 
 @media (max-width: 1024px) {
     .health-grid { grid-template-columns: 1fr; }
     .user-stats-grid { grid-template-columns: repeat(2, 1fr); }
+    .api-grid { grid-template-columns: 1fr; }
     .two-column-grid { grid-template-columns: 1fr; }
 }
 

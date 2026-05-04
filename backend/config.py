@@ -33,6 +33,10 @@ class Config:
     # Contamination = expected proportion of anomalies in data
     ANOMALY_CONTAMINATION = 0.1   # 10% anomaly assumption; adjustable
     ANOMALY_RANDOM_STATE = 42
+    MODEL_PATH = os.environ.get(
+        "MODEL_PATH",
+        os.path.join(BASE_DIR, "backend", "detection", "artifacts", "isolation_forest.joblib")
+    )
 
     # FLAG-06: Severity thresholds derived from Isolation Forest score distribution
     # Isolation Forest scores: more negative = more anomalous

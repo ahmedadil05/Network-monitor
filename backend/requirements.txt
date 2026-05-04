@@ -8,3 +8,6 @@ werkzeug>=3.0.0
 psycopg2-binary>=2.9.0
 python-dotenv>=1.0.0
 # Standard library: csv, os, logging, dataclasses, typing, unittest, functools
+
+joblib>=1.4.0
+scapy>=2.5.0
