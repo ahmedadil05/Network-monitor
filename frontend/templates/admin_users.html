@@ -1,0 +1,350 @@
+{% extends "base.html" %}
+{% block title %}Manage Users{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h2>User Management</h2>
+        <p class="page-subtitle">Manage system users and their roles</p>
+    </div>
+    <button onclick="showAddModal()" class="btn btn-primary">+ Add User</button>
+</div>
+
+<!-- Role Legend -->
+<div class="role-legend">
+    <div class="role-item">
+        <span class="role-badge role-admin">Admin</span>
+        <p>Full system access, user management, settings</p>
+    </div>
+    <div class="role-item">
+        <span class="role-badge role-analyst">Analyst</span>
+        <p>Upload files, run analyses, view results</p>
+    </div>
+    <div class="role-item">
+        <span class="role-badge role-viewer">Viewer</span>
+        <p>View dashboards and reports (read-only)</p>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h3>All Users ({{ users|length }})</h3>
+    </div>
+    <div class="table-wrapper">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Username</th>
+                    <th>Role</th>
+                    <th>Created</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for user in users %}
+            <tr>
+                <td class="text-muted">#{{ user.user_id }}</td>
+                <td><strong>{{ user.username }}</strong></td>
+                <td>
+                    {% if user.role == 'administrator' %}
+                    <span class="role-badge role-admin">Administrator</span>
+                    {% elif user.role == 'analyst' %}
+                    <span class="role-badge role-analyst">Analyst</span>
+                    {% else %}
+                    <span class="role-badge role-viewer">Viewer</span>
+                    {% endif %}
+                </td>
+                <td class="text-muted text-sm">
+                    {% if user.created_at %}{{ user.created_at[:10] }}{% else %}—{% endif %}
+                </td>
+                <td>
+                    <div class="action-buttons">
+                        <button onclick="showEditModal({{ user.user_id }}, '{{ user.username }}', '{{ user.role }}')" class="btn btn-sm btn-outline">Edit</button>
+                        {% if user.user_id != current_user.user_id %}
+                        <form method="POST" action="{{ url_for('admin.delete_user', user_id=user.user_id) }}" style="display:inline;" onsubmit="return confirm('Delete user {{ user.username }}?')">
+                            <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                        </form>
+                        {% else %}
+                        <span class="text-muted text-sm">(Your account)</span>
+                        {% endif %}
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Add User Modal -->
+<div id="addModal" class="modal" style="display:none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Add New User</h3>
+            <span onclick="closeAddModal()" class="modal-close">&times;</span>
+        </div>
+        <form method="POST" action="{{ url_for('admin.add_user') }}">
+            <div class="form-group">
+                <label for="add_username">Username</label>
+                <input type="text" id="add_username" name="username" class="form-control" placeholder="Enter username" required minlength="3">
+                <p class="form-help">3+ characters, alphanumeric</p>
+            </div>
+            <div class="form-group">
+                <label for="add_password">Password</label>
+                <input type="password" id="add_password" name="password" class="form-control" placeholder="Enter password" required minlength="6">
+                <p class="form-help">Minimum 6 characters</p>
+            </div>
+            <div class="form-group">
+                <label for="add_role">Role</label>
+                <select id="add_role" name="role" class="form-control">
+                    <option value="viewer">Viewer (read-only access)</option>
+                    <option value="analyst">Analyst (upload & analyze)</option>
+                    <option value="administrator">Administrator (full access)</option>
+                </select>
+                <p class="form-help">Determines user permissions and access level</p>
+            </div>
+            <div class="modal-actions">
+                <button type="button" onclick="closeAddModal()" class="btn btn-outline">Cancel</button>
+                <button type="submit" class="btn btn-primary">Create User</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Edit User Modal -->
+<div id="editModal" class="modal" style="display:none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Edit User</h3>
+            <span onclick="closeEditModal()" class="modal-close">&times;</span>
+        </div>
+        <form method="POST" id="editForm">
+            <input type="hidden" id="edit_user_id" name="user_id">
+            <div class="form-group">
+                <label for="edit_username">Username</label>
+                <input type="text" id="edit_username" name="username" class="form-control" required minlength="3">
+            </div>
+            <div class="form-group">
+                <label for="edit_password">New Password</label>
+                <input type="password" id="edit_password" name="password" class="form-control" minlength="6" placeholder="Leave blank to keep current password">
+                <p class="form-help">Only change if you want to reset password</p>
+            </div>
+            <div class="form-group">
+                <label for="edit_role">Role</label>
+                <select id="edit_role" name="role" class="form-control">
+                    <option value="viewer">Viewer (read-only access)</option>
+                    <option value="analyst">Analyst (upload & analyze)</option>
+                    <option value="administrator">Administrator (full access)</option>
+                </select>
+            </div>
+            <div class="modal-actions">
+                <button type="button" onclick="closeEditModal()" class="btn btn-outline">Cancel</button>
+                <button type="submit" class="btn btn-primary">Save Changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block style %}
+<style>
+.role-legend {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.role-item {
+    padding: 16px;
+    background: var(--bg-secondary);
+    border-radius: var(--radius);
+    border-left: 4px solid var(--border-color);
+}
+
+.role-item p {
+    margin: 8px 0 0 0;
+    font-size: 13px;
+    color: var(--text-muted);
+}
+
+.role-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.role-badge.role-admin {
+    background: #dbeafe;
+    color: #0c4a6e;
+    border: 1px solid #0284c7;
+}
+
+.role-badge.role-analyst {
+    background: #fef3c7;
+    color: #78350f;
+    border: 1px solid #f59e0b;
+}
+
+.role-badge.role-viewer {
+    background: #dcfce7;
+    color: #166534;
+    border: 1px solid #16a34a;
+}
+
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background: var(--card-bg);
+    border-radius: var(--radius);
+    padding: 24px;
+    width: 100%;
+    max-width: 500px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.modal-header h3 {
+    margin: 0;
+    color: var(--text);
+    font-size: 18px;
+}
+
+.modal-close {
+    font-size: 28px;
+    cursor: pointer;
+    color: var(--text-muted);
+    line-height: 1;
+}
+
+.modal-close:hover {
+    color: var(--text);
+}
+
+.modal-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    margin-top: 24px;
+}
+
+.form-help {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin: 4px 0 0 0;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 8px;
+}
+
+.btn-sm {
+    padding: 6px 12px;
+    font-size: 13px;
+}
+
+.btn-outline {
+    background: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--text);
+}
+
+.btn-outline:hover {
+    background: var(--bg-secondary);
+}
+
+.btn-danger {
+    background: #fecaca;
+    color: #991b1b;
+    border-color: #fca5a5;
+}
+
+.btn-danger:hover {
+    background: #fca5a5;
+}
+
+.text-sm {
+    font-size: 13px !important;
+}
+
+.text-muted {
+    color: var(--text-muted);
+}
+
+.data-table td {
+    vertical-align: middle;
+}
+
+@media (max-width: 768px) {
+    .role-legend {
+        grid-template-columns: 1fr;
+    }
+    
+    .action-buttons {
+        flex-direction: column;
+    }
+    
+    .btn-sm {
+        width: 100%;
+    }
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function showAddModal() {
+    document.getElementById('addModal').style.display = 'flex';
+}
+
+function closeAddModal() {
+    document.getElementById('addModal').style.display = 'none';
+}
+
+function showEditModal(userId, username, role) {
+    document.getElementById('edit_user_id').value = userId;
+    document.getElementById('edit_username').value = username;
+    document.getElementById('edit_role').value = role;
+    document.getElementById('editForm').action = '/admin/users/edit/' + userId;
+    document.getElementById('editModal').style.display = 'flex';
+}
+
+function closeEditModal() {
+    document.getElementById('editModal').style.display = 'none';
+}
+
+window.onclick = function(event) {
+    if (event.target.id === 'addModal') {
+        closeAddModal();
+    }
+    if (event.target.id === 'editModal') {
+        closeEditModal();
+    }
+}
+</script>
+{% endblock %}

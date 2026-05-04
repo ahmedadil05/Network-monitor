@@ -1,0 +1,309 @@
+{% extends "base.html" %}
+{% block title %}Admin Dashboard{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h2>Admin Dashboard</h2>
+        <p class="page-subtitle">System overview and management</p>
+    </div>
+    <div class="admin-nav">
+        <a href="{{ url_for('admin.users') }}" class="nav-link">Users</a>
+        <a href="{{ url_for('admin.audit_log') }}" class="nav-link">Audit Log</a>
+        <a href="{{ url_for('admin.settings') }}" class="nav-link">Settings</a>
+    </div>
+</div>
+
+<!-- Stats Grid -->
+<div class="stats-grid">
+    <div class="stat-card stat-blue">
+        <div class="stat-value">{{ total_users }}</div>
+        <div class="stat-label">Total Users</div>
+    </div>
+    <div class="stat-card stat-purple">
+        <div class="stat-value">{{ total_files }}</div>
+        <div class="stat-label">Files Processed</div>
+    </div>
+    <div class="stat-card stat-green">
+        <div class="stat-value">{{ total_logs }}</div>
+        <div class="stat-label">Log Entries</div>
+    </div>
+    <div class="stat-card stat-red">
+        <div class="stat-value">{{ total_anomalies }}</div>
+        <div class="stat-label">Anomalies</div>
+    </div>
+</div>
+
+<!-- Role Distribution -->
+<div class="card">
+    <div class="card-header">
+        <h3>User Roles</h3>
+    </div>
+    <div class="card-body">
+        <div class="role-distribution">
+            {% if role_distribution %}
+                <div class="role-stat">
+                    <span class="role-label">Administrators</span>
+                    <span class="role-count">{{ role_distribution.get('administrator', 0) }}</span>
+                </div>
+                <div class="role-stat">
+                    <span class="role-label">Analysts</span>
+                    <span class="role-count">{{ role_distribution.get('analyst', 0) }}</span>
+                </div>
+                <div class="role-stat">
+                    <span class="role-label">Viewers</span>
+                    <span class="role-count">{{ role_distribution.get('viewer', 0) }}</span>
+                </div>
+            {% else %}
+                <p class="text-muted">No role data available</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Recent Anomalies -->
+<div class="card">
+    <div class="card-header">
+        <h3>Recent Anomalies</h3>
+        <a href="{{ url_for('dashboard.index') }}" class="link-small">View All</a>
+    </div>
+    <div class="card-body">
+        {% if recent_anomalies %}
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Severity</th>
+                        <th>Source IP</th>
+                        <th>Detection Time</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for anomaly in recent_anomalies %}
+                    <tr>
+                        <td>{{ anomaly.result_id }}</td>
+                        <td>
+                            <span class="severity-badge severity-{{ anomaly.severity.lower() }}">
+                                {{ anomaly.severity }}
+                            </span>
+                        </td>
+                        <td>{{ anomaly.source_ip }}</td>
+                        <td>{{ anomaly.detection_time }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p class="text-muted">No anomalies detected yet</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Admin Actions -->
+<div class="admin-actions">
+    <a href="{{ url_for('admin.users') }}" class="admin-action-card">
+        <span class="action-icon">👥</span>
+        <div class="action-text">
+            <h4>Manage Users</h4>
+            <p>Add, edit, or remove users</p>
+        </div>
+    </a>
+    <a href="{{ url_for('admin.audit_log') }}" class="admin-action-card">
+        <span class="action-icon">📋</span>
+        <div class="action-text">
+            <h4>Audit Log</h4>
+            <p>View admin action history</p>
+        </div>
+    </a>
+    <a href="{{ url_for('admin.settings') }}" class="admin-action-card">
+        <span class="action-icon">⚙️</span>
+        <div class="action-text">
+            <h4>Settings</h4>
+            <p>Configure system settings</p>
+        </div>
+    </a>
+</div>
+
+<!-- Recent Audit Log -->
+<div class="card">
+    <div class="card-header">
+        <h3>Recent Admin Actions</h3>
+        <a href="{{ url_for('admin.audit_log') }}" class="link-small">View All</a>
+    </div>
+    <div class="card-body">
+        {% if recent_audit %}
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Action</th>
+                        <th>Resource</th>
+                        <th>Details</th>
+                        <th>Time</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in recent_audit[:5] %}
+                    <tr>
+                        <td><code class="action-code">{{ log.action }}</code></td>
+                        <td>{{ log.resource }}</td>
+                        <td class="text-muted">{{ log.details[:50] }}{% if log.details|length > 50 %}...{% endif %}</td>
+                        <td>{{ log.timestamp }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p class="text-muted">No admin actions logged yet</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block style %}
+<style>
+.admin-nav {
+    display: flex;
+    gap: 16px;
+    margin-top: 16px;
+}
+
+.admin-nav .nav-link {
+    padding: 8px 16px;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    color: var(--text);
+    text-decoration: none;
+    font-size: 14px;
+    transition: all 0.2s ease;
+}
+
+.admin-nav .nav-link:hover {
+    background: var(--blue-mid);
+    color: white;
+    border-color: var(--blue-mid);
+}
+
+.admin-actions {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 16px;
+    margin: 24px 0;
+}
+
+.admin-action-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.admin-action-card:hover {
+    border-color: var(--blue-mid);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow);
+}
+
+.action-icon {
+    font-size: 32px;
+    display: inline-block;
+}
+
+.action-text h4 {
+    color: var(--text);
+    margin: 0 0 4px 0;
+    font-size: 15px;
+}
+
+.action-text p {
+    color: var(--text-muted);
+    margin: 0;
+    font-size: 13px;
+}
+
+.role-distribution {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 16px;
+}
+
+.role-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 16px;
+    background: var(--bg-secondary);
+    border-radius: var(--radius);
+    text-align: center;
+}
+
+.role-label {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+}
+
+.role-count {
+    font-size: 24px;
+    font-weight: 600;
+    color: var(--blue-mid);
+}
+
+.severity-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.severity-high {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+.severity-medium {
+    background: #fef3c7;
+    color: #f59e0b;
+}
+
+.severity-low {
+    background: #dcfce7;
+    color: #16a34a;
+}
+
+.action-code {
+    background: var(--bg-secondary);
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 12px;
+    color: var(--text);
+}
+
+.link-small {
+    font-size: 13px;
+    color: var(--blue-mid);
+    text-decoration: none;
+}
+
+.link-small:hover {
+    text-decoration: underline;
+}
+
+@media (max-width: 768px) {
+    .admin-nav {
+        flex-wrap: wrap;
+    }
+    
+    .admin-actions {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+{% endblock %}

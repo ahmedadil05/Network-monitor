@@ -1,0 +1,186 @@
+{% extends "base.html" %}
+{% block title %}Audit Log{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h2>Audit Log</h2>
+        <p class="page-subtitle">Track all admin actions and system changes</p>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h3>Admin Actions (Page {{ page }})</h3>
+    </div>
+    <div class="table-wrapper">
+        {% if logs %}
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Action</th>
+                        <th>Resource</th>
+                        <th>Details</th>
+                        <th>Time</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for log in logs %}
+                <tr>
+                    <td>
+                        <code class="action-code">{{ log.action }}</code>
+                    </td>
+                    <td class="text-muted">{{ log.resource }}</td>
+                    <td class="text-muted">{{ log.details }}</td>
+                    <td class="text-sm text-muted">{{ log.timestamp }}</td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            
+            <!-- Pagination -->
+            {% if total > per_page %}
+            <div class="pagination">
+                {% if page > 1 %}
+                    <a href="{{ url_for('admin.audit_log', page=1) }}" class="page-link">« First</a>
+                    <a href="{{ url_for('admin.audit_log', page=page-1) }}" class="page-link">‹ Prev</a>
+                {% endif %}
+                
+                <div class="page-info">
+                    Page {{ page }} of {{ ((total - 1) // per_page) + 1 }}
+                </div>
+                
+                {% if page < ((total - 1) // per_page) + 1 %}
+                    <a href="{{ url_for('admin.audit_log', page=page+1) }}" class="page-link">Next ›</a>
+                    <a href="{{ url_for('admin.audit_log', page=((total - 1) // per_page) + 1) }}" class="page-link">Last »</a>
+                {% endif %}
+            </div>
+            {% endif %}
+        {% else %}
+            <div class="empty-state">
+                <p>No audit log entries yet</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Legend -->
+<div class="audit-legend">
+    <h4>Common Actions</h4>
+    <ul>
+        <li><code>CREATE_USER</code> - User account created</li>
+        <li><code>UPDATE_USER</code> - User details modified</li>
+        <li><code>DELETE_USER</code> - User account deleted</li>
+        <li><code>UPDATE_SETTINGS</code> - System settings changed</li>
+    </ul>
+</div>
+{% endblock %}
+
+{% block style %}
+<style>
+.action-code {
+    background: var(--bg-secondary);
+    padding: 4px 8px;
+    border-radius: 3px;
+    font-family: 'Monaco', 'Courier New', monospace;
+    font-size: 12px;
+    color: var(--blue-mid);
+    white-space: nowrap;
+}
+
+.text-sm {
+    font-size: 13px;
+}
+
+.text-muted {
+    color: var(--text-muted);
+}
+
+.pagination {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    justify-content: center;
+    margin-top: 24px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border-color);
+}
+
+.page-link {
+    padding: 8px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    color: var(--text);
+    text-decoration: none;
+    font-size: 14px;
+    transition: all 0.2s ease;
+}
+
+.page-link:hover {
+    background: var(--bg-secondary);
+    border-color: var(--blue-mid);
+}
+
+.page-info {
+    font-size: 14px;
+    color: var(--text-muted);
+    margin: 0 8px;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 40px;
+    color: var(--text-muted);
+}
+
+.audit-legend {
+    margin-top: 24px;
+    padding: 16px;
+    background: var(--bg-secondary);
+    border-radius: var(--radius);
+}
+
+.audit-legend h4 {
+    margin: 0 0 12px 0;
+    color: var(--text);
+    font-size: 14px;
+}
+
+.audit-legend ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.audit-legend li {
+    padding: 4px 0;
+    font-size: 13px;
+    color: var(--text-muted);
+}
+
+.audit-legend code {
+    background: var(--card-bg);
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 12px;
+    color: var(--blue-mid);
+    margin-right: 8px;
+}
+
+@media (max-width: 768px) {
+    .pagination {
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+    
+    .data-table {
+        font-size: 12px;
+    }
+    
+    .data-table th,
+    .data-table td {
+        padding: 8px;
+    }
+}
+</style>
+{% endblock %}
