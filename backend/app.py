@@ -67,6 +67,8 @@ def _create_default_admin(app):
     """Create default admin account if no users exist."""
     with app.app_context():
         from backend.database.db import query_db
+        query_db("SELECT 1", one=True)
+        app.logger.info("Database connection check passed.")
         existing = query_db("SELECT user_id FROM users LIMIT 1", one=True)
         if existing is None:
             try:
