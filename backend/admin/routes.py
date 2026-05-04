@@ -14,6 +14,7 @@ admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
 
 # Valid roles
 VALID_ROLES = ["administrator", "analyst", "viewer"]
+ASSIGNABLE_ROLES = ["analyst", "viewer"]
 
 
 @admin_bp.route("/users")
@@ -36,8 +37,8 @@ def add_user():
         flash("Username and password are required.", "error")
         return redirect(url_for("admin.users"))
 
-    if role not in VALID_ROLES:
-        flash(f"Invalid role '{role}'. Must be one of: {', '.join(VALID_ROLES)}", "error")
+    if role not in ASSIGNABLE_ROLES:
+        flash(f"Invalid role '{role}'. Must be one of: {', '.join(ASSIGNABLE_ROLES)}", "error")
         return redirect(url_for("admin.users"))
 
     try:
@@ -68,8 +69,8 @@ def edit_user(user_id):
         flash("Username is required.", "error")
         return redirect(url_for("admin.users"))
 
-    if role not in VALID_ROLES:
-        flash(f"Invalid role '{role}'. Must be one of: {', '.join(VALID_ROLES)}", "error")
+    if role not in ASSIGNABLE_ROLES:
+        flash(f"Invalid role '{role}'. Must be one of: {', '.join(ASSIGNABLE_ROLES)}", "error")
         return redirect(url_for("admin.users"))
 
     try:

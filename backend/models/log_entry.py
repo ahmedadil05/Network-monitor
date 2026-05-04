@@ -76,7 +76,7 @@ class LogEntry:
 
     @classmethod
     def from_db_row(cls, row):
-        """Reconstruct a LogEntry from a sqlite3.Row object."""
+        """Reconstruct a LogEntry from a database row mapping."""
         return cls(
             log_id=row["log_id"],
             file_id=row["file_id"],

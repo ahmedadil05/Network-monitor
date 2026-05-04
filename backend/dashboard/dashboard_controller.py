@@ -81,7 +81,7 @@ class DashboardController:
                FROM anomaly_results ar
                JOIN log_entries le ON ar.log_id = le.log_id
                ORDER BY ar.detection_time DESC
-               LIMIT ?""",
+               LIMIT %s""",
             (limit,)
         )
         return [dict(r) for r in rows]
@@ -107,7 +107,7 @@ class DashboardController:
                WHERE event_type != 'NORMAL'
                GROUP BY event_type
                ORDER BY count DESC
-               LIMIT ?""",
+               LIMIT %s""",
             (limit,)
         )
         return [dict(r) for r in rows]
@@ -130,9 +130,9 @@ class DashboardController:
         rows = query_db(
             """SELECT DATE(detection_time) as day, COUNT(*) as count
                FROM anomaly_results
-               WHERE detection_time >= DATE('now', ?)
+               WHERE detection_time >= NOW() - (%s * INTERVAL '1 day')
                GROUP BY day ORDER BY day ASC""",
-            (f"-{days} days",)
+            (days,)
         )
         return [dict(r) for r in rows]
 
@@ -155,10 +155,10 @@ class DashboardController:
         where_parts = []
         args = []
         if severity:
-            where_parts.append("ar.severity = ?")
+            where_parts.append("ar.severity = %s")
             args.append(severity.upper())
         if status:
-            where_parts.append("ar.status = ?")
+            where_parts.append("ar.status = %s")
             args.append(status.upper())
 
         where_sql = ("WHERE " + " AND ".join(where_parts)) if where_parts else ""
@@ -178,7 +178,7 @@ class DashboardController:
                 JOIN log_entries le ON ar.log_id = le.log_id
                 {where_sql}
                 ORDER BY ar.detection_time DESC
-                LIMIT ? OFFSET ?""",
+                 LIMIT %s OFFSET %s""",
             args + [per_page, offset]
         )
 
@@ -205,7 +205,7 @@ class DashboardController:
                       le.land, le.wrong_fragment, le.urgent, le.original_label
                FROM anomaly_results ar
                JOIN log_entries le ON ar.log_id = le.log_id
-               WHERE ar.result_id = ?""",
+               WHERE ar.result_id = %s""",
             (result_id,), one=True
         )
         return dict(row) if row else None
@@ -221,7 +221,7 @@ class DashboardController:
             return False
         from backend.database.db import execute_db
         execute_db(
-            "UPDATE anomaly_results SET status = ? WHERE result_id = ?",
+            "UPDATE anomaly_results SET status = %s WHERE result_id = %s",
             (new_status.upper(), result_id)
         )
         return True
@@ -246,27 +246,27 @@ class DashboardController:
     def get_user_summary(user_id: int) -> dict:
         """Return statistics specific to the current user."""
         files_uploaded = query_db(
-            "SELECT COUNT(*) as c FROM raw_log_files WHERE uploaded_by = ?", (user_id,), one=True
+            "SELECT COUNT(*) as c FROM raw_log_files WHERE uploaded_by = %s", (user_id,), one=True
         )["c"]
 
         entries_from_user = query_db(
             """SELECT COUNT(*) as c FROM log_entries le
                JOIN raw_log_files f ON le.file_id = f.file_id
-               WHERE f.uploaded_by = ?""", (user_id,), one=True
+               WHERE f.uploaded_by = %s""", (user_id,), one=True
         )["c"]
 
         anomalies_from_user = query_db(
             """SELECT COUNT(*) as c FROM anomaly_results ar
                JOIN log_entries le ON ar.log_id = le.log_id
                JOIN raw_log_files f ON le.file_id = f.file_id
-               WHERE f.uploaded_by = ?""", (user_id,), one=True
+               WHERE f.uploaded_by = %s""", (user_id,), one=True
         )["c"]
 
         open_from_user = query_db(
             """SELECT COUNT(*) as c FROM anomaly_results ar
                JOIN log_entries le ON ar.log_id = le.log_id
                JOIN raw_log_files f ON le.file_id = f.file_id
-               WHERE f.uploaded_by = ? AND ar.status = 'OPEN'""", (user_id,), one=True
+               WHERE f.uploaded_by = %s AND ar.status = 'OPEN'""", (user_id,), one=True
         )["c"]
 
         return {
@@ -282,9 +282,9 @@ class DashboardController:
         rows = query_db(
             """SELECT f.file_id, f.file_name, f.upload_time, f.row_count, f.processed
                FROM raw_log_files f
-               WHERE f.uploaded_by = ?
+               WHERE f.uploaded_by = %s
                ORDER BY f.upload_time DESC
-               LIMIT ?""",
+               LIMIT %s""",
             (user_id, limit)
         )
         return [dict(r) for r in rows]
@@ -300,9 +300,9 @@ class DashboardController:
                FROM anomaly_results ar
                JOIN log_entries le ON ar.log_id = le.log_id
                JOIN raw_log_files f ON le.file_id = f.file_id
-               WHERE f.uploaded_by = ?
+               WHERE f.uploaded_by = %s
                ORDER BY ar.detection_time DESC
-               LIMIT ?""",
+               LIMIT %s""",
             (user_id, limit)
         )
         return [dict(r) for r in rows]
@@ -347,7 +347,7 @@ class DashboardController:
                JOIN anomaly_results ar ON le.log_id = ar.log_id
                GROUP BY le.source_ip
                ORDER BY count DESC
-               LIMIT ?""",
+               LIMIT %s""",
             (limit,)
         )
         return [dict(r) for r in rows]
@@ -357,14 +357,14 @@ class DashboardController:
         """Return detection rate statistics over time."""
         total_detections = query_db(
             """SELECT COUNT(*) as c FROM anomaly_results
-               WHERE detection_time >= DATE('now', ?)""",
-            (f"-{days} days",), one=True
+               WHERE detection_time >= NOW() - (%s * INTERVAL '1 day')""",
+            (days,), one=True
         )["c"]
         
         high_severity = query_db(
             """SELECT COUNT(*) as c FROM anomaly_results
-               WHERE detection_time >= DATE('now', ?) AND severity = 'HIGH'""",
-            (f"-{days} days",), one=True
+               WHERE detection_time >= NOW() - (%s * INTERVAL '1 day') AND severity = 'HIGH'""",
+            (days,), one=True
         )["c"]
         
         return {

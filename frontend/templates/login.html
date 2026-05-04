@@ -1,18 +1,13 @@
 {% extends "base.html" %}
-{% block title %}Login{% endblock %}
+{% block title %}Login - Network Monitor{% endblock %}
 
 {% block content %}
-<!--
-  Login Screen — Use Case: User Authentication
-  Source: Section 4.4.2 — 'administrator provides valid credentials to access the system'
-  Section 4.2.1 — 'user authentication is handled at this layer'
--->
 <div class="login-wrapper">
     <div class="login-card">
         <div class="login-header">
-            <div class="login-icon">&#9673;</div>
+            <div class="login-icon">N</div>
             <h1>Network Monitor</h1>
-            <p>AI-Powered Log Anomaly Detection</p>
+            <p>Sign in to your account</p>
         </div>
 
         <form method="POST" action="{{ url_for('auth.login') }}" novalidate>
@@ -35,18 +30,25 @@
                     id="password"
                     name="password"
                     class="form-control"
-                    placeholder="Enter your password"
+                    placeholder="••••••••"
                     autocomplete="current-password"
                     required
                 >
             </div>
-            <button type="submit" class="btn btn-primary btn-full">
+            <div class="form-group">
+                <label for="login_as">Login As</label>
+                <select id="login_as" name="login_as" class="form-control" required>
+                    <option value="user" selected>User (Viewer/Analyst)</option>
+                    <option value="admin">Administrator</option>
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary" style="width: 100%;">
                 Sign In
             </button>
         </form>
 
-        <div class="login-note">
-            <small>Access restricted to authorised system administrators.</small>
+        <div class="login-footer">
+            <p>Accounts are created by administrators only.</p>
         </div>
     </div>
 </div>

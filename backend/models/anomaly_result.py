@@ -43,7 +43,7 @@ class AnomalyResult:
 
     @classmethod
     def from_db_row(cls, row):
-        """Reconstruct an AnomalyResult from a sqlite3.Row."""
+        """Reconstruct an AnomalyResult from a database row mapping."""
         return cls(
             result_id=row["result_id"],
             log_id=row["log_id"],

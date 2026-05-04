@@ -24,6 +24,7 @@ def login():
     if request.method == "POST":
         username = request.form.get("username", "").strip()
         password = request.form.get("password", "")
+        login_as = request.form.get("login_as", "user").strip().lower()
 
         if not username or not password:
             flash("Username and password are required.", "error")
@@ -32,6 +33,18 @@ def login():
         user = User.get_by_username(username)
         if user is None or not user.validate_password(password):
             flash("Invalid username or password.", "error")
+            return render_template("login.html")
+
+        if login_as not in {"admin", "user"}:
+            flash("Invalid login type selected.", "error")
+            return render_template("login.html")
+
+        if login_as == "admin" and user.role != "administrator":
+            flash("This account is not an administrator account.", "error")
+            return render_template("login.html")
+
+        if login_as == "user" and user.role == "administrator":
+            flash("Use 'Administrator' login for admin accounts.", "error")
             return render_template("login.html")
 
         login_user(user)
