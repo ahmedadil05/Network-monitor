@@ -12,7 +12,7 @@ Supervisor: Asst. Prof. Dr. Salim Jibrin Danbatta
 |-----------|-----------|-----------|
 | Language | Python 3.10+ | FLAG-01: open-source, undergraduate-level |
 | Web Framework | Flask 3.0 | FLAG-02: lightweight, no enterprise overhead |
-| Database | SQLite | FLAG-03: relational, zero-cost, local deployment |
+| Database | PostgreSQL | FLAG-03: relational, robust for local and cloud deployment |
 | ML Algorithm | Isolation Forest (scikit-learn) | FLAG-04: unsupervised, explainable, resource-efficient |
 | Dataset | NSL-KDD (UCI) | FLAG-05: referenced in project citations |
 | Visualisation | Chart.js 4 | Open-source, browser-native |
@@ -31,7 +31,7 @@ network-monitor/
   │   ├── detection/             # AnomalyDetector — Isolation Forest (Section 4.5.4)
   │   ├── models/                # User, LogEntry, AnomalyResult (Section 4.5)
   │   ├── dashboard/             # DashboardController + routes (Section 4.5.6)
-  │   ├── database/              # SQLite schema, connection management
+  │   ├── database/              # PostgreSQL schema, connection management
   │   ├── app.py                 # Flask application factory
   │   ├── config.py              # Configuration constants
   │   └── requirements.txt
@@ -105,7 +105,7 @@ Open your browser at: **http://127.0.0.1:5000**
 - Username: `admin`
 - Password: `admin123`
 
-The SQLite database (`backend/database/network_monitor.db`) is created automatically on first run.
+The PostgreSQL schema is created automatically on first run using `backend/database/schema.sql`.
 
 ---
 
@@ -116,7 +116,7 @@ The SQLite database (`backend/database/network_monitor.db`) is created automatic
 3. The system automatically:
    - Parses and preprocesses the log data (LogProcessor)
    - Runs Isolation Forest anomaly detection (AnomalyDetector)
-   - Stores results in the SQLite database
+   - Stores results in the PostgreSQL database
 4. **View the Dashboard** at `/dashboard` for summary charts and statistics.
 5. **Review Anomalies** at `/anomalies` — filter by severity or status.
 6. **Inspect Detail** — click any anomaly for full explainable output.
@@ -175,7 +175,7 @@ Edit `backend/config.py` to adjust:
 Three-Tier Web Architecture (Section 4.2):
 
 ```
-[Browser] ← HTTP → [Flask Routes] ← → [Application Layer] ← → [SQLite DB]
+[Browser] ← HTTP → [Flask Routes] ← → [Application Layer] ← → [PostgreSQL DB]
 Presentation Layer   auth/dashboard     LogProcessor             Users
                                         AnomalyDetector          LogEntries
                                         DashboardController      AnomalyResults

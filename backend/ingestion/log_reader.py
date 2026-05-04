@@ -29,6 +29,7 @@ class LogIngestionService:
         self._random_state = cfg.ANOMALY_RANDOM_STATE
         self._high_thresh = cfg.SEVERITY_HIGH_THRESHOLD
         self._medium_thresh = cfg.SEVERITY_MEDIUM_THRESHOLD
+        self._model_path = cfg.MODEL_PATH
 
     # ──────────────────────────────────────────────────────────────
     # Public API
@@ -65,7 +66,7 @@ class LogIngestionService:
 
         # Update file row count
         execute_db(
-            "UPDATE raw_log_files SET row_count = ?, processed = 1 WHERE file_id = ?",
+            "UPDATE raw_log_files SET row_count = %s, processed = 1 WHERE file_id = %s",
             (len(entries), file_id)
         )
 
@@ -73,11 +74,21 @@ class LogIngestionService:
         detector = AnomalyDetector(
             contamination=self._contamination,
             random_state=self._random_state,
+            model_path=self._model_path,
         )
         anomaly_results = detector.detect(
             entries,
             high_threshold=self._high_thresh,
             medium_threshold=self._medium_thresh,
+        )
+
+        metrics = detector.evaluate(
+            detector._model.predict(detector._build_feature_matrix(entries)),
+            [e.original_label for e in entries],
+        )
+        logger.info(
+            "Evaluation metrics for file_id=%d: precision=%.4f recall=%.4f",
+            file_id, metrics["precision"], metrics["recall"]
         )
 
         # 5. Store AnomalyResult records (Section 4.5.5)
@@ -96,8 +107,9 @@ class LogIngestionService:
     @staticmethod
     def _register_file(file_name: str, uploaded_by: int) -> int:
         return execute_db(
-            "INSERT INTO raw_log_files (file_name, uploaded_by, processed) VALUES (?, ?, 0)",
-            (file_name, uploaded_by)
+            "INSERT INTO raw_log_files (file_name, uploaded_by, processed) VALUES (%s, %s, 0) RETURNING file_id",
+            (file_name, uploaded_by),
+            return_id=True,
         )
 
     @staticmethod
@@ -110,8 +122,10 @@ class LogIngestionService:
                    (file_id, timestamp, source_ip, destination_ip, event_type, message,
                     duration, protocol_type, service, flag, src_bytes, dst_bytes,
                     land, wrong_fragment, urgent, original_label)
-                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-                entry.to_db_tuple()
+                   VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                   RETURNING log_id""",
+                entry.to_db_tuple(),
+                return_id=True,
             )
             ids.append(eid)
         return ids
@@ -123,7 +137,7 @@ class LogIngestionService:
             execute_db(
                 """INSERT INTO anomaly_results
                    (log_id, anomaly_score, severity, detection_time, status, explanation)
-                   VALUES (?,?,?,?,?,?)""",
+                   VALUES (%s,%s,%s,%s,%s,%s)""",
                 result.to_db_tuple()
             )
 
