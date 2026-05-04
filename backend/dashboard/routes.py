@@ -162,6 +162,17 @@ def api_anomalies():
     return jsonify(result)
 
 
+@dashboard_bp.route("/alerts")
+@login_required
+def alerts():
+    """Compatibility endpoint: returns list of detected anomalies."""
+    page = request.args.get("page", 1, type=int)
+    severity = request.args.get("severity")
+    status = request.args.get("status")
+    result = DashboardController.get_anomaly_list(page=page, severity=severity, status=status)
+    return jsonify(result.get("items", []))
+
+
 @dashboard_bp.route("/api/stats")
 @login_required
 def api_stats():

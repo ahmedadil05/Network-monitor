@@ -12,6 +12,7 @@ from enum import Enum
 from typing import List, Optional, Tuple
 
 from backend.config import Config
+from backend.preprocessing.log_processor import RETAINED_COLUMNS, NSL_KDD_COLUMNS
 
 logger = logging.getLogger(__name__)
 
@@ -270,7 +271,7 @@ class UploadValidator:
         )
 
     def _validate_csv_structure(self, content: str) -> Optional[UploadError]:
-        """Validate that content has valid CSV structure."""
+        """Validate CSV structure and compatibility with supported network-log schemas."""
         if not content:
             return UploadError(
                 error_type=UploadErrorType.EMPTY_FILE,
@@ -287,20 +288,34 @@ class UploadValidator:
                     message="The file appears to be empty or has no valid rows."
                 )
 
-            # Check if we have at least one row
-            if len(rows) < 1:
-                return UploadError(
-                    error_type=UploadErrorType.NO_VALID_ROWS,
-                    message="The file contains no data rows."
-                )
+            header = [c.strip().lower() for c in rows[0]] if rows[0] else []
+            has_named_header = any(c in header for c in ("duration", "protocol_type", "service", "flag", "label"))
 
-            # Check column consistency (all rows should have similar column counts)
-            first_row_len = len(rows[0]) if rows else 0
-            if first_row_len < 2:
+            if has_named_header:
+                required = set(RETAINED_COLUMNS)
+                missing = required - set(header)
+                if missing:
+                    return UploadError(
+                        error_type=UploadErrorType.INVALID_CSV_STRUCTURE,
+                        message="CSV header is missing required network monitoring fields.",
+                        details=f"Missing columns: {', '.join(sorted(missing))}"
+                    )
+
+            # Check column consistency and minimum supported shape
+            first_row_len = len(rows[1] if has_named_header and len(rows) > 1 else rows[0])
+            if first_row_len < 10:
                 return UploadError(
                     error_type=UploadErrorType.INVALID_CSV_STRUCTURE,
-                    message="The file appears to have too few columns. Expected at least 2 columns.",
+                    message="The file has too few columns for supported network monitoring data.",
                     details=f"First row has {first_row_len} columns."
+                )
+
+            valid_width = {10, len(NSL_KDD_COLUMNS)}
+            if first_row_len not in valid_width:
+                return UploadError(
+                    error_type=UploadErrorType.INVALID_CSV_STRUCTURE,
+                    message="Unsupported log schema width.",
+                    details="Supported rows: compact 10-column format or full NSL-KDD 43-column format."
                 )
 
             # Check for consistent column count (allow minor variations)

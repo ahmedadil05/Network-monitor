@@ -13,6 +13,7 @@ from backend.models.log_entry import LogEntry
 from backend.preprocessing.log_processor import LogProcessor
 from backend.detection.anomaly_detector import AnomalyDetector
 from backend.config import Config
+from backend.ingestion.text_log_parser import text_to_compact_csv
 
 logger = logging.getLogger(__name__)
 
@@ -52,9 +53,16 @@ class LogIngestionService:
         file_id = self._register_file(file_name, uploaded_by)
         logger.info("Ingestion: registered file '%s' as file_id=%d", file_name, file_id)
 
-        # 2. Preprocess — LogProcessor (Section 4.5.3)
+        # 2. Optional parser layer for messy text logs -> compact CSV schema
+        prepared_content = file_content
+        if file_name.lower().endswith((".log", ".txt")):
+            parsed = text_to_compact_csv(file_content)
+            if parsed.strip():
+                prepared_content = parsed
+
+        # 3. Preprocess — LogProcessor (Section 4.5.3)
         processor = LogProcessor(file_id=file_id)
-        entries = processor.process(file_content)
+        entries = processor.process(prepared_content)
         if not entries:
             logger.warning("Ingestion: no valid entries parsed from '%s'.", file_name)
             return file_id, 0, 0
